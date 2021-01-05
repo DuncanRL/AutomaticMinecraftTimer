@@ -5,8 +5,8 @@ import tkinter.colorchooser as tkColorChooser
 import tkinter.filedialog as tkFileDialog
 from sys import maxsize
 import webbrowser
-from os import getcwd, mkdir
-from os.path import expanduser, isfile, isdir
+from os import getcwd, mkdir, system, listdir
+from os.path import expanduser, isfile, isdir, getmtime
 import json
 import tkinter.messagebox
 
@@ -17,7 +17,11 @@ class AutoMCTimer(tk.Frame):
             "~\\AppData\\Roaming\\.automctimer\\"), *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
 
-        print("Using datapath: "+dataPath)
+        self.startTime = time.time()
+        self.currentTime = time.time()
+        self.addedTime = 0.0
+        self.isRunning = False
+        self.isWaiting = False
 
         self.parent = parent
         self.dataPath = dataPath
@@ -27,8 +31,8 @@ class AutoMCTimer(tk.Frame):
 
         self.rtaText = tk.StringVar(self)
         self.igtText = tk.StringVar(self)
-        self.rtaText.set("32:22.050")
-        self.igtText.set("IGT: "+"32:22.050")
+        self.rtaText.set("0:00.000")
+        self.igtText.set("IGT: 0:00.000")
 
         self.rtaTimer = tk.Label(
             self, textvariable=self.rtaText, font=self.rtaFont)
@@ -40,8 +44,8 @@ class AutoMCTimer(tk.Frame):
 
         self.optionsMenu = None
 
-        self.parent.protocol("WM_DELETE_WINDOW", self.exit)
-        self.parent.bind("<Key>", self.openOptionMenu)
+        parent.protocol("WM_DELETE_WINDOW", self.exit)
+        parent.bind("<Escape>", self.openOptionMenu)
 
         self.optionsJson = None
         self.loadOptions()
@@ -49,6 +53,39 @@ class AutoMCTimer(tk.Frame):
         self.parent.focus()
 
         self.after(0, self.loop)
+
+    def getIGT(self):
+        print(self.getLatestWorld())
+
+    def getLatestWorld(self):
+        try:
+            worlds = []
+            for i in listdir(self.expandMCPath("saves")):
+                if isfile(self.expandMCPath("saves/"+i+"/level.dat")):
+                    worlds.append(i)
+
+            latestWorld = None
+            lastestTime = 0
+            for i in worlds:
+                timeForI = getmtime(self.expandMCPath("saves/"+i))
+                if timeForI > lastestTime:
+                    lastestTime = timeForI
+                    latestWorld = i
+            
+            return latestWorld
+
+        except:
+            return None
+
+    def expandMCPath(self, path):
+        return self.optionsJson["mcPath"] + path
+
+    def rtaUpdate(self):
+        self.after(10, self.rtaUpdate)
+
+    def loop(self):
+        self.after(500, self.loop)
+        self.getIGT()
 
     @staticmethod
     def validateOptionsJson(optionsJson):
@@ -129,9 +166,6 @@ class AutoMCTimer(tk.Frame):
             self.config(bg=bgColour)
             self.parent.config(bg=bgColour)
 
-    def loop(self):
-        self.after(5, self.loop)
-
     def getTimerFrame(self):
         return self
 
@@ -140,13 +174,12 @@ class OptionsMenu(tk.Toplevel):
     def __init__(self, parent):
         tk.Toplevel.__init__(self, parent)
         self.parent = parent
-        self.title("AutoMCTimer Options")
+        self.title("AutoMCTimer: Options")
 
         self.protocol("WM_DELETE_WINDOW", self.exit)
 
         self.optionsMenuFrame = OptionsMenuFrame(self)
-        self.optionsMenuFrame.config(highlightthickness=10)
-        self.optionsMenuFrame.grid(row=0, column=0)
+        self.optionsMenuFrame.grid(row=0, column=0, padx=10, pady=10)
 
         self.focus()
 
@@ -155,27 +188,34 @@ class OptionsMenu(tk.Toplevel):
             "AutoMCTimer: Save", "Save Options?")
         if response != None:
             if response:
-                fontOptions = self.optionsMenuFrame.displaySettings.fontOptions
-                colorOptions = self.optionsMenuFrame.displaySettings.colorOptions
-                gameSettings = self.optionsMenuFrame.gameSettings
-                self.getTimerFrame().saveOptions(
-                    {
-                        "display": {
-                            "font": fontOptions.fontName.get(),
-                            "size1": fontOptions.size1.get(),
-                            "size2": fontOptions.size2.get(),
-                            "fontColour": colorOptions.color1,
-                            "bgColour": colorOptions.color2
-                        },
-                        "mcPath": gameSettings.mcPath.get()
-                    }
-                )
+                self.saveAndExit()
             else:
-                self.getTimerFrame().loadOptions()
-            self.destroy()
+                self.exitWithoutSave()
         else:
             self.focus()
         return response
+
+    def saveAndExit(self):
+        fontOptions = self.optionsMenuFrame.displaySettings.fontOptions
+        colorOptions = self.optionsMenuFrame.displaySettings.colorOptions
+        gameSettings = self.optionsMenuFrame.gameSettings
+        self.getTimerFrame().saveOptions(
+            {
+                "display": {
+                    "font": fontOptions.fontName.get(),
+                    "size1": fontOptions.size1.get(),
+                    "size2": fontOptions.size2.get(),
+                    "fontColour": colorOptions.color1,
+                    "bgColour": colorOptions.color2
+                },
+                "mcPath": gameSettings.mcPath.get()
+            }
+        )
+        self.destroy()
+
+    def exitWithoutSave(self):
+        self.getTimerFrame().loadOptions()
+        self.destroy()
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -186,18 +226,26 @@ class OptionsMenuFrame(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.parent = parent
 
-        exitButton = tk.Button(self, text="Exit", command=parent.exit)
-        exitButton.grid(row=0, column=0, sticky="w")
+        exitButtonsFrame = tk.Frame(self)
+        exitButtonsFrame.grid(row=100, column=0, pady=5, padx=5)
+
+        exitButton = tk.Button(
+            exitButtonsFrame, text="Apply", command=parent.saveAndExit)
+        exitButton.grid(row=0, column=0, sticky="w", pady=0, padx=5)
+
+        exitButton = tk.Button(
+            exitButtonsFrame, text="Cancel", command=parent.exitWithoutSave)
+        exitButton.grid(row=0, column=1, sticky="w", pady=0, padx=5)
 
         self.displaySettings = DisplaySettings(self)
         self.displaySettings.config(highlightthickness=1,
                                     highlightbackground="black")
-        self.displaySettings.grid(row=1, column=0, sticky="w")
+        self.displaySettings.grid(row=1, column=0, sticky="w", pady=5, padx=5)
 
         self.gameSettings = GameSettings(self)
         self.gameSettings.config(highlightthickness=1,
                                  highlightbackground="black")
-        self.gameSettings.grid(row=2, column=0, sticky="w")
+        self.gameSettings.grid(row=2, column=0, sticky="w", pady=5, padx=5)
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -208,22 +256,22 @@ class GameSettings(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.parent = parent
         tk.Label(self, text="Game Settings", font=tkFont.Font(
-            self, font=("Arial", 15))).grid(row=0, column=0, sticky="w")
+            self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0, sticky="w")
         self.mcPath = tk.StringVar(
             self, self.getTimerFrame().optionsJson["mcPath"])
-        
-        pathFrame = tk.Frame(self)
-        pathFrame.grid(row=1,column=0)
 
-        tk.Button(pathFrame, text="📁", command=self.choosePath).grid(
-            row=0, column=0, sticky="w")
+        pathFrame = tk.Frame(self)
+        pathFrame.grid(padx=2, pady=2, row=1, column=0)
+
+        tk.Button(pathFrame, text="📁", command=self.choosePath).grid(padx=2, pady=2,
+                                                                     row=0, column=0, sticky="w")
         tk.Entry(pathFrame, textvariable=self.mcPath,
-                 width=30).grid(row=0, column=1, sticky="w")
+                 width=30).grid(padx=2, pady=2, row=0, column=1, sticky="w")
 
     def choosePath(self):
         response = tkFileDialog.askdirectory()
         if response != "":
-            self.mcPath.set(response.replace("/","\\")+"\\")
+            self.mcPath.set(response.replace("/", "\\")+"\\")
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -235,18 +283,18 @@ class DisplaySettings(tk.Frame):
         self.parent = parent
 
         tk.Label(self, text="Display Settings", font=tkFont.Font(
-            self, font=("Arial", 15))).grid(row=0, column=0, sticky="w")
+            self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0, sticky="w")
         tk.Label(self, text="Font:", font=tkFont.Font(
-            self, font=("Arial", 12))).grid(row=1, column=0, sticky="w")
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=1, column=0, sticky="w")
 
         self.fontOptions = FontOptions(self)
-        self.fontOptions.grid(row=2, column=0, sticky="w")
+        self.fontOptions.grid(padx=2, pady=2, row=2, column=0, sticky="w")
 
         tk.Label(self, text="Color (Font, Background):", font=tkFont.Font(
-            self, font=("Arial", 12))).grid(row=3, column=0, sticky="w")
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=3, column=0, sticky="w")
 
         self.colorOptions = ColorOptions(self)
-        self.colorOptions.grid(row=4, column=0, sticky="w")
+        self.colorOptions.grid(padx=2, pady=2, row=4, column=0, sticky="w")
 
         self.lastFont = ""
         self.after(0, self.loop)
@@ -272,20 +320,20 @@ class FontOptions(tk.Frame):
         display = self.getTimerFrame().optionsJson["display"]
 
         self.fontName = tk.StringVar(self, value=display["font"])
-        tk.Button(self, text="Open List", command=self.openFontList, width=7).grid(
-            row=0, column=0, sticky="w")
-        tk.Entry(self, textvariable=self.fontName, width=15).grid(
-            row=0, column=1, sticky="w")
+        tk.Button(self, text="Open List", command=self.openFontList, width=7).grid(padx=2, pady=2,
+                                                                                   row=0, column=0, sticky="w")
+        tk.Entry(self, textvariable=self.fontName, width=15).grid(padx=2, pady=2,
+                                                                  row=0, column=1, sticky="w")
 
         self.size1 = IntEntry(self, 100)
         self.size1.config(width=3)
-        self.size1.grid(row=0, column=2)
+        self.size1.grid(padx=2, pady=2, row=0, column=2)
         self.size1.insert(0, str(display["size1"]))
 
         self.size2 = IntEntry(self, 100)
         self.size2.config(width=3)
         self.size2.insert(0, str(display["size2"]))
-        self.size2.grid(row=0, column=3)
+        self.size2.grid(padx=2, pady=2, row=0, column=3)
 
     def openFontList(self):
         with open("AMCTfonts.txt", "w") as fontfile:
@@ -307,8 +355,8 @@ class ColorOptions(tk.Frame):
 
         self.button1 = tk.Button(self, width=13, command=self.chooseColour1)
         self.button2 = tk.Button(self, width=13, command=self.chooseColour2)
-        self.button1.grid(row=0, column=0)
-        self.button2.grid(row=0, column=1)
+        self.button1.grid(padx=2, pady=2, row=0, column=0)
+        self.button2.grid(padx=2, pady=2, row=0, column=1)
 
         self.color1 = display["fontColour"]
         self.color2 = display["bgColour"]
@@ -355,8 +403,33 @@ class IntEntry(tk.Entry):
 
 if __name__ == "__main__":
     root = tk.Tk()
+
+    try:
+        import keyboard
+    except:
+        if tk.messagebox.askokcancel("AutoMCTimer: Required Module", "Install keyboard module? This module is required to run AutoMCTimer."):
+            system('python3 -m pip install keyboard')
+            system('python -m pip install keyboard')
+            import keyboard
+        else:
+            exit()
+
+    try:
+        import mouse
+    except:
+        if tk.messagebox.askokcancel("AutoMCTimer: Required Module", "Install mouse module? This module is required to run AutoMCTimer."):
+            system('python3 -m pip install mouse')
+            system('python -m pip install mouse')
+            import mouse
+        else:
+            exit()
+
     root.geometry("500x150")
     root.title("AutoMCTimer")
+    try:
+        root.iconbitmap("AutoMCTimer.exe")
+    except:
+        pass
     timer = AutoMCTimer(root)
-    timer.grid(row=0, column=0, sticky="w")
+    timer.grid(padx=2, pady=2, row=0, column=0, sticky="w")
     root.mainloop()
