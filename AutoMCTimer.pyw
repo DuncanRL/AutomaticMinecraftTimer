@@ -17,9 +17,15 @@ class AutoMCTimer(tk.Frame):
             "~\\AppData\\Roaming\\.automctimer\\"), *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
 
-        self.startTime = time.time()
-        self.currentTime = time.time()
-        self.addedTime = 0.0
+        try:
+            parent.iconbitmap("AutoMCTimer.exe")
+        except:
+            print("Failed to load icon")
+        
+        parent.wm_resizable(False,False)
+
+        self.startTime = 0
+        self.addedTime = 0
         self.isRunning = False
         self.isWaiting = False
 
@@ -35,9 +41,9 @@ class AutoMCTimer(tk.Frame):
         self.igtText.set("IGT: 0:00.000")
 
         self.rtaTimer = tk.Label(
-            self, textvariable=self.rtaText, font=self.rtaFont)
+            self, textvariable=self.rtaText, font=self.rtaFont, width=100, anchor="w")
         self.igtTimer = tk.Label(
-            self, textvariable=self.igtText, font=self.igtFont)
+            self, textvariable=self.igtText, font=self.igtFont, width=100, anchor="w")
 
         self.rtaTimer.grid(row=0, column=0, sticky="w")
         self.igtTimer.grid(row=1, column=0, sticky="w")
@@ -50,29 +56,80 @@ class AutoMCTimer(tk.Frame):
         self.optionsJson = None
         self.loadOptions()
 
+        self.loadKeys()
+
         self.parent.focus()
 
         self.after(0, self.loop)
+        self.after(0, self.rtaUpdate)
+
+    def loadKeys(self):
+        self.hotkeyPause = keyboard.add_hotkey(
+            self.optionsJson["keybinds"]["pause"], self.pauseKey)
+        self.hotkeyReset = keyboard.add_hotkey(
+            self.optionsJson["keybinds"]["reset"], self.resetKey)
+
+    def unloadKeys(self):
+        keyboard.remove_hotkey(self.hotkeyPause)
+        keyboard.remove_hotkey(self.hotkeyReset)
+
+    def pauseKey(self):
+        if self.isRunning:
+            self.isRunning = False
+            self.addedTime = time.time() - self.startTime + self.addedTime
+        else:
+            self.isRunning = True
+            self.startTime = time.time()
+
+    def resetKey(self):
+        self.isRunning = False
+        self.addedTime = 0
 
     def getIGT(self):
-        print(self.getLatestWorld())
+        latestWorld = self.getLatestWorld()
+        if latestWorld == None:
+            return 1
+        try:
+            statsDir = self.getLatestWorld()+"stats\\"
+            if isdir(statsDir):
+                with open(statsDir+listdir(statsDir)[0], "r") as statsFile:
+                    statsJson = json.load(statsFile)
+                    statsFile.close()
+                return statsJson["stats"]["minecraft:custom"]["minecraft:play_one_minute"]/20
+            else:
+                return 0
+        except:
+            return 0
+
+    @staticmethod
+    def convertSeconds(x):
+        Seconds = "%.3f" % (x-(int(x)-(int(x) % 60)))
+        if x % 60 < 10:
+            Seconds = "0" + Seconds
+        Minutes = str(int(x/(60)) % 60)
+        Hours = str(int(x/(60*60)))
+
+        if len(Minutes) < 2 and Hours != "0":
+            Minutes = "0" + Minutes
+
+        return ((Hours+":") if Hours != "0" else "")+Minutes+":"+Seconds
 
     def getLatestWorld(self):
         try:
             worlds = []
             for i in listdir(self.expandMCPath("saves")):
-                if isfile(self.expandMCPath("saves/"+i+"/level.dat")):
+                if isfile(self.expandMCPath("saves\\"+i+"\\level.dat")):
                     worlds.append(i)
 
             latestWorld = None
             lastestTime = 0
             for i in worlds:
-                timeForI = getmtime(self.expandMCPath("saves/"+i))
+                timeForI = getmtime(self.expandMCPath("saves\\"+i))
                 if timeForI > lastestTime:
                     lastestTime = timeForI
                     latestWorld = i
-            
-            return latestWorld
+
+            return self.expandMCPath("saves\\"+latestWorld+"\\")
 
         except:
             return None
@@ -82,22 +139,51 @@ class AutoMCTimer(tk.Frame):
 
     def rtaUpdate(self):
         self.after(10, self.rtaUpdate)
+        if self.isRunning:
+            self.rtaText.set(self.convertSeconds(
+                time.time() - self.startTime + self.addedTime))
+        else:
+            self.rtaText.set(self.convertSeconds(self.addedTime))
 
     def loop(self):
         self.after(500, self.loop)
-        self.getIGT()
+        igt = self.getIGT()
+        self.igtText.set("IGT: " + self.convertSeconds(igt))
+
+        if igt == 0 and not self.isWaiting:
+            print("YEP WORLD")
+            self.isRunning = False
+            self.addedTime = 0
+            self.isWaiting = True
+            self.after(10, self.startWorld)
+
+    def startWorld(self):
+        igt = self.getIGT()
+        if igt != 0.0:
+            self.isRunning = True
+            self.addedTime = 0
+            self.startTime = time.time()
+            self.isWaiting = False
+        else:
+            self.after(10, self.startWorld)
+
+    def setKeys(self, pauseKey, resetKey,):
+        pass
 
     @staticmethod
     def validateOptionsJson(optionsJson):
         vv = AutoMCTimer._validateValue
+        vv(optionsJson, "mcPath", expanduser(
+            "~\\AppData\\Roaming\\.minecraft\\"))
+        keybinds = vv(optionsJson, "keybinds", {})
+        vv(keybinds, "pause", "\\")
+        vv(keybinds, "reset", "]")
         display = vv(optionsJson, "display", {})
         vv(display, "font", "Arial")
         vv(display, "size1", 50)
         vv(display, "size2", 30)
         vv(display, "fontColour", "#ffffff")
         vv(display, "bgColour", "#000000")
-        vv(optionsJson, "mcPath", expanduser(
-            "~\\AppData\\Roaming\\.minecraft\\"))
 
     @staticmethod
     def _validateValue(jsonThing, value, default):
@@ -147,6 +233,7 @@ class AutoMCTimer(tk.Frame):
 
     def openOptionMenu(self, x):
         if self.optionsMenu == None or not self.optionsMenu.winfo_exists():
+            self.unloadKeys()
             self.optionsMenu = OptionsMenu(self)
 
     def changeDisplay(self, fontName=None, fontSize1=None, fontSize2=None, fontColour=None, bgColour=None):
@@ -173,6 +260,11 @@ class AutoMCTimer(tk.Frame):
 class OptionsMenu(tk.Toplevel):
     def __init__(self, parent):
         tk.Toplevel.__init__(self, parent)
+        try:
+            self.iconbitmap("AutoMCTimer.exe")
+        except:
+            print("Failed to load icon")
+        self.wm_resizable(False,False)
         self.parent = parent
         self.title("AutoMCTimer: Options")
 
@@ -180,6 +272,7 @@ class OptionsMenu(tk.Toplevel):
 
         self.optionsMenuFrame = OptionsMenuFrame(self)
         self.optionsMenuFrame.grid(row=0, column=0, padx=10, pady=10)
+        self.attributes("-topmost", True)
 
         self.focus()
 
@@ -198,24 +291,30 @@ class OptionsMenu(tk.Toplevel):
     def saveAndExit(self):
         fontOptions = self.optionsMenuFrame.displaySettings.fontOptions
         colorOptions = self.optionsMenuFrame.displaySettings.colorOptions
-        gameSettings = self.optionsMenuFrame.gameSettings
+        generalSettings = self.optionsMenuFrame.generalSettings
         self.getTimerFrame().saveOptions(
             {
+                "mcPath": generalSettings.mcPath.get(),
+                "keybinds": {
+                    "pause": generalSettings.keyPause.get(),
+                    "reset": generalSettings.keyReset.get()
+                },
                 "display": {
                     "font": fontOptions.fontName.get(),
                     "size1": fontOptions.size1.get(),
                     "size2": fontOptions.size2.get(),
                     "fontColour": colorOptions.color1,
                     "bgColour": colorOptions.color2
-                },
-                "mcPath": gameSettings.mcPath.get()
+                }
             }
         )
         self.destroy()
+        self.getTimerFrame().loadKeys()
 
     def exitWithoutSave(self):
         self.getTimerFrame().loadOptions()
         self.destroy()
+        self.getTimerFrame().loadKeys()
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -237,36 +336,78 @@ class OptionsMenuFrame(tk.Frame):
             exitButtonsFrame, text="Cancel", command=parent.exitWithoutSave)
         exitButton.grid(row=0, column=1, sticky="w", pady=0, padx=5)
 
+        self.generalSettings = GeneralSettings(self)
+        self.generalSettings.config(highlightthickness=1,
+                                    highlightbackground="black")
+        self.generalSettings.grid(row=1, column=0, sticky="w", pady=5, padx=5)
+
         self.displaySettings = DisplaySettings(self)
         self.displaySettings.config(highlightthickness=1,
                                     highlightbackground="black")
-        self.displaySettings.grid(row=1, column=0, sticky="w", pady=5, padx=5)
-
-        self.gameSettings = GameSettings(self)
-        self.gameSettings.config(highlightthickness=1,
-                                 highlightbackground="black")
-        self.gameSettings.grid(row=2, column=0, sticky="w", pady=5, padx=5)
+        self.displaySettings.grid(row=2, column=0, sticky="w", pady=5, padx=5)
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
 
 
-class GameSettings(tk.Frame):
+class GeneralSettings(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
         self.parent = parent
-        tk.Label(self, text="Game Settings", font=tkFont.Font(
+        tk.Label(self, text="General Settings", font=tkFont.Font(
             self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0, sticky="w")
         self.mcPath = tk.StringVar(
             self, self.getTimerFrame().optionsJson["mcPath"])
 
+        tk.Label(self, text=".minecraft Path:", font=tkFont.Font(
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=1, column=0, sticky="w")
+
         pathFrame = tk.Frame(self)
-        pathFrame.grid(padx=2, pady=2, row=1, column=0)
+        pathFrame.grid(padx=2, pady=2, row=2, column=0)
+
+        self.keyPause = tk.StringVar(self)
+        self.keyPause.set(
+            self.getTimerFrame().optionsJson["keybinds"]["pause"])
+        self.keyReset = tk.StringVar(self)
+        self.keyReset.set(
+            self.getTimerFrame().optionsJson["keybinds"]["reset"])
+
+        self.settingKey = False
+
+        tk.Label(self, text="Keybinds:", font=tkFont.Font(
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=3, column=0, sticky="w")
+
+        self.keyPauseButton = tk.Button(
+            self, text="Pause/Continue: "+self.keyPause.get(), width=29, command=self.setKeyPause)
+        self.keyPauseButton.grid(padx=2, pady=2, row=4, column=0, sticky="w")
+        self.keyResetButton = tk.Button(
+            self, text="Reset: "+self.keyReset.get(), width=29, command=self.setKeyReset)
+        self.keyResetButton.grid(padx=2, pady=2, row=5, column=0, sticky="w")
 
         tk.Button(pathFrame, text="📁", command=self.choosePath).grid(padx=2, pady=2,
                                                                      row=0, column=0, sticky="w")
         tk.Entry(pathFrame, textvariable=self.mcPath,
                  width=30).grid(padx=2, pady=2, row=0, column=1, sticky="w")
+
+    def setKeyPause(self):
+        if not self.settingKey:
+            self.settingKey = True
+            key = keyboard.read_hotkey(suppress=False)
+            self.keyPause.set(key)
+            self.keyPauseButton.config(text="Pause/Continue: "+key)
+            time.sleep(0.1)
+            keyboard.press_and_release(key)
+            self.settingKey = False
+
+    def setKeyReset(self):
+        if not self.settingKey:
+            self.settingKey = True
+            key = keyboard.read_hotkey(suppress=False)
+            self.keyReset.set(key)
+            self.keyResetButton.config(text="Reset: "+key)
+            time.sleep(0.1)
+            keyboard.press_and_release(key)
+            self.settingKey = False
 
     def choosePath(self):
         response = tkFileDialog.askdirectory()
@@ -426,10 +567,7 @@ if __name__ == "__main__":
 
     root.geometry("500x150")
     root.title("AutoMCTimer")
-    try:
-        root.iconbitmap("AutoMCTimer.exe")
-    except:
-        pass
+    root.attributes("-topmost", True)
     timer = AutoMCTimer(root)
     timer.grid(padx=2, pady=2, row=0, column=0, sticky="w")
     root.mainloop()
