@@ -1,3 +1,5 @@
+amctVersion = "v1.3"
+
 import tkinter as tk
 import time
 import tkinter.font as tkFont
@@ -16,6 +18,9 @@ class AutoMCTimer(tk.Frame):
     def __init__(self, parent, dataPath=expanduser(
             "~\\AppData\\Roaming\\.automctimer\\"), *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
+
+        if not isdir(dataPath):
+            mkdir(dataPath)
 
         try:
             parent.iconbitmap("AutoMCTimer.exe")
@@ -395,7 +400,6 @@ class GeneralSettings(tk.Frame):
             key = keyboard.read_hotkey(suppress=False)
             self.keyPause.set(key)
             self.keyPauseButton.config(text="Pause/Continue: "+key)
-            time.sleep(0.1)
             keyboard.press_and_release(key)
             self.settingKey = False
 
@@ -405,7 +409,6 @@ class GeneralSettings(tk.Frame):
             key = keyboard.read_hotkey(suppress=False)
             self.keyReset.set(key)
             self.keyResetButton.config(text="Reset: "+key)
-            time.sleep(0.1)
             keyboard.press_and_release(key)
             self.settingKey = False
 
@@ -566,7 +569,7 @@ if __name__ == "__main__":
             exit()
 
     root.geometry("500x150")
-    root.title("AutoMCTimer")
+    root.title("AutoMCTimer "+amctVersion)
     root.attributes("-topmost", True)
     timer = AutoMCTimer(root)
     timer.grid(padx=2, pady=2, row=0, column=0, sticky="w")
