@@ -1,23 +1,51 @@
-amctVersion = "v1.3"
-
+from threading import Thread
 import tkinter as tk
 import time
 import tkinter.font as tkFont
 import tkinter.colorchooser as tkColorChooser
 import tkinter.filedialog as tkFileDialog
-from sys import maxsize
+from sys import maxsize, platform
 import webbrowser
 from os import getcwd, mkdir, system, listdir
 from os.path import expanduser, isfile, isdir, getmtime
 import json
 import tkinter.messagebox
 
+amctVersion = "v1.4"
+
+
+def readKey(timeout):
+    keyr = keyReader()
+    key = keyr.readKey(timeout)
+    del(keyr)
+    return key
+
+
+class keyReader():
+    def readKey(self, timeout):
+        self.key = None
+        self.rkt = Thread(target=self.readKeyThread)
+        self.rkt.start()
+        startTime = time.time()
+
+        while time.time() - startTime < timeout and self.key == None:
+            time.sleep(0.01)
+        return self.key
+
+    def readKeyThread(self):
+        self.key = keyboard.read_hotkey(suppress=False)
+
 
 class AutoMCTimer(tk.Frame):
 
-    def __init__(self, parent, dataPath=expanduser(
-            "~\\AppData\\Roaming\\.automctimer\\"), *args, **kwargs):
+    def __init__(self, parent, dataPath="default", *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
+
+        if dataPath == "default":
+            if "win" in platform:
+                dataPath = expanduser("~/AppData/Roaming/.automctimer/")
+            else:
+                dataPath = getcwd()+"/.automctimer/"
 
         if not isdir(dataPath):
             mkdir(dataPath)
@@ -26,8 +54,6 @@ class AutoMCTimer(tk.Frame):
             parent.iconbitmap("AutoMCTimer.exe")
         except:
             print("Failed to load icon")
-        
-        parent.wm_resizable(False,False)
 
         self.startTime = 0
         self.addedTime = 0
@@ -46,9 +72,9 @@ class AutoMCTimer(tk.Frame):
         self.igtText.set("IGT: 0:00.000")
 
         self.rtaTimer = tk.Label(
-            self, textvariable=self.rtaText, font=self.rtaFont, width=100, anchor="w")
+            self, textvariable=self.rtaText, font=self.rtaFont, width=20, anchor="w")
         self.igtTimer = tk.Label(
-            self, textvariable=self.igtText, font=self.igtFont, width=100, anchor="w")
+            self, textvariable=self.igtText, font=self.igtFont, width=20, anchor="w")
 
         self.rtaTimer.grid(row=0, column=0, sticky="w")
         self.igtTimer.grid(row=1, column=0, sticky="w")
@@ -61,12 +87,29 @@ class AutoMCTimer(tk.Frame):
         self.optionsJson = None
         self.loadOptions()
 
+        startw = self.optionsJson["windowSize"][0]
+        starth = self.optionsJson["windowSize"][1]
+
+        self.parent.geometry(str(startw)+"x"+str(starth))
+
         self.loadKeys()
 
         self.parent.focus()
 
         self.after(0, self.loop)
         self.after(0, self.rtaUpdate)
+
+        if self.optionsJson["welcomeMessage"]:
+
+            self.update()
+
+            tk.messagebox.askokcancel("AutoMCTimer: Welcome", "Welcome!\nPress escape with the timer open to access the options." + (
+                "\n\nSince you are on linux, please set your .minecraft installation directory." if "linux" in platform else ""))
+
+            self.optionsJson["welcomeMessage"] = False
+
+            if "linux" in platform:
+                self.openOptionMenu(1)
 
     def loadKeys(self):
         self.hotkeyPause = keyboard.add_hotkey(
@@ -123,18 +166,18 @@ class AutoMCTimer(tk.Frame):
         try:
             worlds = []
             for i in listdir(self.expandMCPath("saves")):
-                if isfile(self.expandMCPath("saves\\"+i+"\\level.dat")):
+                if isfile(self.expandMCPath("saves/"+i+"/level.dat")):
                     worlds.append(i)
 
             latestWorld = None
             lastestTime = 0
             for i in worlds:
-                timeForI = getmtime(self.expandMCPath("saves\\"+i))
+                timeForI = getmtime(self.expandMCPath("saves/"+i))
                 if timeForI > lastestTime:
                     lastestTime = timeForI
                     latestWorld = i
 
-            return self.expandMCPath("saves\\"+latestWorld+"\\")
+            return self.expandMCPath("saves/"+latestWorld+"/")
 
         except:
             return None
@@ -152,6 +195,7 @@ class AutoMCTimer(tk.Frame):
 
     def loop(self):
         self.after(500, self.loop)
+
         igt = self.getIGT()
         self.igtText.set("IGT: " + self.convertSeconds(igt))
 
@@ -178,8 +222,12 @@ class AutoMCTimer(tk.Frame):
     @staticmethod
     def validateOptionsJson(optionsJson):
         vv = AutoMCTimer._validateValue
-        vv(optionsJson, "mcPath", expanduser(
-            "~\\AppData\\Roaming\\.minecraft\\"))
+        defaultPath = getcwd()
+        if "win" in platform:
+            defaultPath = expanduser("~/AppData/Roaming/.minecraft/")
+        vv(optionsJson, "mcPath", defaultPath)
+        vv(optionsJson, "welcomeMessage", True)
+        vv(optionsJson, "windowSize", [500, 150])
         keybinds = vv(optionsJson, "keybinds", {})
         vv(keybinds, "pause", "\\")
         vv(keybinds, "reset", "]")
@@ -201,9 +249,17 @@ class AutoMCTimer(tk.Frame):
     def exit(self):
         if not (self.optionsMenu == None or not self.optionsMenu.winfo_exists()):
             if(self.optionsMenu.exit() != None):
+                self.saveSize()
                 self.parent.destroy()
         else:
+            self.saveSize()
             self.parent.destroy()
+
+    def saveSize(self):
+        w = self.parent.winfo_width()
+        h = self.parent.winfo_height()
+        self.optionsJson["windowSize"] = [w, h]
+        self.saveOptions(self.optionsJson)
 
     def loadOptions(self):
         if isfile(self.dataPath+"options.json"):
@@ -269,7 +325,7 @@ class OptionsMenu(tk.Toplevel):
             self.iconbitmap("AutoMCTimer.exe")
         except:
             print("Failed to load icon")
-        self.wm_resizable(False,False)
+        self.wm_resizable(False, False)
         self.parent = parent
         self.title("AutoMCTimer: Options")
 
@@ -389,33 +445,37 @@ class GeneralSettings(tk.Frame):
             self, text="Reset: "+self.keyReset.get(), width=29, command=self.setKeyReset)
         self.keyResetButton.grid(padx=2, pady=2, row=5, column=0, sticky="w")
 
-        tk.Button(pathFrame, text="📁", command=self.choosePath).grid(padx=2, pady=2,
-                                                                     row=0, column=0, sticky="w")
+        folderbutton = "O"
+        if "win" in platform:
+            folderbutton = "📁"
+
+        tk.Button(pathFrame, text=folderbutton, command=self.choosePath).grid(padx=2, pady=2,
+                                                                              row=0, column=0, sticky="w")
         tk.Entry(pathFrame, textvariable=self.mcPath,
                  width=30).grid(padx=2, pady=2, row=0, column=1, sticky="w")
 
     def setKeyPause(self):
         if not self.settingKey:
             self.settingKey = True
-            key = keyboard.read_hotkey(suppress=False)
-            self.keyPause.set(key)
-            self.keyPauseButton.config(text="Pause/Continue: "+key)
-            keyboard.press_and_release(key)
+            key = readKey(5)
+            if key != None:
+                self.keyPause.set(key)
+                self.keyPauseButton.config(text="Pause/Continue: "+key)
             self.settingKey = False
 
     def setKeyReset(self):
         if not self.settingKey:
             self.settingKey = True
-            key = keyboard.read_hotkey(suppress=False)
-            self.keyReset.set(key)
-            self.keyResetButton.config(text="Reset: "+key)
-            keyboard.press_and_release(key)
+            key = readKey(5)
+            if key != None:
+                self.keyReset.set(key)
+                self.keyResetButton.config(text="Reset: "+key)
             self.settingKey = False
 
     def choosePath(self):
         response = tkFileDialog.askdirectory()
         if response != "":
-            self.mcPath.set(response.replace("/", "\\")+"\\")
+            self.mcPath.set(response+"/")
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -480,11 +540,15 @@ class FontOptions(tk.Frame):
         self.size2.grid(padx=2, pady=2, row=0, column=3)
 
     def openFontList(self):
-        with open("AMCTfonts.txt", "w") as fontfile:
+        filename = "AMCTfonts.html"
+        with open(filename, "w") as fontfile:
+            fontfile.write("<!DOCTYPE html><html><body>")
             for i in tk.font.families(self):
-                fontfile.write(i+"\n")
+                fontfile.write("<p>"+i+"</p>")
+            fontfile.write("</body></html>")
             fontfile.close()
-        webbrowser.open(getcwd()+"\\AMCTfonts.txt")
+
+        webbrowser.open(getcwd()+"/"+filename)
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -568,7 +632,6 @@ if __name__ == "__main__":
         else:
             exit()
 
-    root.geometry("500x150")
     root.title("AutoMCTimer "+amctVersion)
     root.attributes("-topmost", True)
     timer = AutoMCTimer(root)
