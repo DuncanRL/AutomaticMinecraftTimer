@@ -110,6 +110,8 @@ class AutoMCTimer(tk.Frame):
 
             if "linux" in platform:
                 self.openOptionMenu(1)
+        
+        parent.focus()
 
     def loadKeys(self):
         self.hotkeyPause = keyboard.add_hotkey(
