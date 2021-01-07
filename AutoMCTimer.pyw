@@ -4,6 +4,7 @@ import time
 import tkinter.font as tkFont
 import tkinter.colorchooser as tkColorChooser
 import tkinter.filedialog as tkFileDialog
+from tkinter import ttk
 from sys import maxsize, platform
 import webbrowser
 from os import getcwd, mkdir, system, listdir
@@ -11,7 +12,7 @@ from os.path import expanduser, isfile, isdir, getmtime
 import json
 import tkinter.messagebox
 
-amctVersion = "v1.4"
+amctVersion = "v1.5"
 
 
 def readKey(timeout):
@@ -50,39 +51,50 @@ class AutoMCTimer(tk.Frame):
         if not isdir(dataPath):
             mkdir(dataPath)
 
-        try:
-            parent.iconbitmap("AutoMCTimer.exe")
-        except:
-            print("Failed to load icon")
+        self.iconName = None
+        for i in listdir(getcwd()):
+            if "AutoMCTimer" in i and ".exe" in i:
+                self.iconName = i
+
+        if self.iconName != None:
+            parent.iconbitmap(self.iconName)
 
         self.startTime = 0
         self.addedTime = 0
         self.isRunning = False
         self.isWaiting = False
+        self.inOptions = False
 
         self.parent = parent
         self.dataPath = dataPath
 
-        self.rtaFont = tk.font.Font(self, ("DS-Digital", 50))
-        self.igtFont = tk.font.Font(self, ("DS-Digital", 30))
+        self.rtaFont = tk.font.Font(self, ("Arial", 50))
+        self.igtFont = tk.font.Font(self, ("Arial", 30))
+        self.attemptFont = tk.font.Font(self, ("Arial", 1))
 
         self.rtaText = tk.StringVar(self)
         self.igtText = tk.StringVar(self)
-        self.rtaText.set("0:00.000")
-        self.igtText.set("IGT: 0:00.000")
+        self.attemptText = tk.StringVar(self)
+
+        self.rtaPrefix = tk.StringVar(self)
+        self.igtPrefix = tk.StringVar(self)
+        self.attemptPrefix = tk.StringVar(self)
 
         self.rtaTimer = tk.Label(
             self, textvariable=self.rtaText, font=self.rtaFont, width=20, anchor="w")
         self.igtTimer = tk.Label(
             self, textvariable=self.igtText, font=self.igtFont, width=20, anchor="w")
+        self.attemptLabel = tk.Label(
+            self, textvariable=self.attemptText, font=self.attemptFont, width=20, anchor="w")
 
         self.rtaTimer.grid(row=0, column=0, sticky="w")
         self.igtTimer.grid(row=1, column=0, sticky="w")
+        self.attemptLabel.grid(row=2, column=0, sticky="w")
 
         self.optionsMenu = None
 
         parent.protocol("WM_DELETE_WINDOW", self.exit)
-        parent.bind("<Escape>", self.openOptionMenu)
+        parent.bind("<Escape>", self.openOptionsMenu)
 
         self.optionsJson = None
         self.loadOptions()
@@ -91,6 +103,8 @@ class AutoMCTimer(tk.Frame):
         starth = self.optionsJson["windowSize"][1]
 
         self.parent.geometry(str(startw)+"x"+str(starth))
+
+        self.attempts = self.optionsJson["attempts"]
 
         self.loadKeys()
 
@@ -106,11 +120,9 @@ class AutoMCTimer(tk.Frame):
             tk.messagebox.askokcancel("AutoMCTimer: Welcome", "Welcome!\nPress escape with the timer open to access the options." + (
                 "\n\nSince you are on linux, please set your .minecraft installation directory." if "linux" in platform else ""))
 
-            self.optionsJson["welcomeMessage"] = False
-
             if "linux" in platform:
-                self.openOptionMenu(1)
-        
+                self.openOptionsMenu(1)
+
         parent.focus()
 
     def loadKeys(self):
@@ -188,25 +200,39 @@ class AutoMCTimer(tk.Frame):
         return self.optionsJson["mcPath"] + path
 
     def rtaUpdate(self):
-        self.after(10, self.rtaUpdate)
-        if self.isRunning:
-            self.rtaText.set(self.convertSeconds(
-                time.time() - self.startTime + self.addedTime))
+        if self.inOptions:
+            self.after(100, self.rtaUpdate)
+            self.rtaText.set(self.rtaPrefix.get() +
+                             self.convertSeconds(0))
         else:
-            self.rtaText.set(self.convertSeconds(self.addedTime))
+            self.after(10, self.rtaUpdate)
+            if self.isRunning:
+                self.rtaText.set(self.rtaPrefix.get() + self.convertSeconds(
+                    time.time() - self.startTime + self.addedTime))
+            else:
+                self.rtaText.set(self.rtaPrefix.get() +
+                                 self.convertSeconds(self.addedTime))
 
     def loop(self):
-        self.after(500, self.loop)
+        if not self.inOptions:
+            self.after(500, self.loop)
 
-        igt = self.getIGT()
-        self.igtText.set("IGT: " + self.convertSeconds(igt))
+            self.attemptText.set(self.attemptPrefix.get()+str(self.attempts))
 
-        if igt == 0 and not self.isWaiting:
-            print("YEP WORLD")
-            self.isRunning = False
-            self.addedTime = 0
-            self.isWaiting = True
-            self.after(10, self.startWorld)
+            igt = self.getIGT()
+            self.igtText.set(self.igtPrefix.get() + self.convertSeconds(igt))
+
+            if igt == 0 and not self.isWaiting:
+                self.attempts += 1
+                self.isRunning = False
+                self.addedTime = 0
+                self.isWaiting = True
+                self.after(10, self.startWorld)
+
+        else:
+            self.after(100, self.loop)
+            self.igtText.set(self.igtPrefix.get() + self.convertSeconds(0))
+            self.attemptText.set(self.attemptPrefix.get()+str(self.attempts))
 
     def startWorld(self):
         igt = self.getIGT()
@@ -218,27 +244,35 @@ class AutoMCTimer(tk.Frame):
         else:
             self.after(10, self.startWorld)
 
-    def setKeys(self, pauseKey, resetKey,):
-        pass
-
     @staticmethod
     def validateOptionsJson(optionsJson):
         vv = AutoMCTimer._validateValue
         defaultPath = getcwd()
         if "win" in platform:
             defaultPath = expanduser("~/AppData/Roaming/.minecraft/")
+
         vv(optionsJson, "mcPath", defaultPath)
         vv(optionsJson, "welcomeMessage", True)
-        vv(optionsJson, "windowSize", [500, 150])
+        vv(optionsJson, "attempts", 0)
+        vv(optionsJson, "windowSize", [500, 200])
+
         keybinds = vv(optionsJson, "keybinds", {})
         vv(keybinds, "pause", "\\")
         vv(keybinds, "reset", "]")
+
         display = vv(optionsJson, "display", {})
         vv(display, "font", "Arial")
-        vv(display, "size1", 50)
-        vv(display, "size2", 30)
         vv(display, "fontColour", "#ffffff")
         vv(display, "bgColour", "#000000")
+        rta = vv(display, "rta", {})
+        vv(rta, "size", "50")
+        vv(rta, "prefix", "")
+        igt = vv(display, "igt", {})
+        vv(igt, "size", "30")
+        vv(igt, "prefix", "IGT: ")
+        ac = vv(display, "attemptCounter", {})
+        vv(ac, "size", "20")
+        vv(ac, "prefix", "Attempt #")
 
     @staticmethod
     def _validateValue(jsonThing, value, default):
@@ -251,13 +285,15 @@ class AutoMCTimer(tk.Frame):
     def exit(self):
         if not (self.optionsMenu == None or not self.optionsMenu.winfo_exists()):
             if(self.optionsMenu.exit() != None):
-                self.saveSize()
+                self.quickSave()
                 self.parent.destroy()
         else:
-            self.saveSize()
+            self.quickSave()
             self.parent.destroy()
 
-    def saveSize(self):
+    def quickSave(self):
+        self.optionsJson["welcomeMessage"] = False
+        self.optionsJson["attempts"] = self.attempts
         w = self.parent.winfo_width()
         h = self.parent.winfo_height()
         self.optionsJson["windowSize"] = [w, h]
@@ -273,19 +309,12 @@ class AutoMCTimer(tk.Frame):
                 self.optionsJson = {}
         else:
             if not isdir(self.dataPath):
-                pass
-            with open(self.dataPath+"options.json", "w+") as optionsFile:
-                self.optionsJson = {'display': {'font': 'Arial', 'size1': 50,
-                                                'size2': 30, 'fontColour': '#ffffff', 'bgColour': '#000000'}}
-                json.dump(self.optionsJson, optionsFile, indent=4)
-                optionsFile.close()
+                mkdir(self.dataPath)
+            self.optionsJson = {}
 
         self.validateOptionsJson(self.optionsJson)
 
-        display = self.optionsJson["display"]
-
-        self.changeDisplay(display["font"], display["size1"],
-                           display["size2"], display["fontColour"], display["bgColour"])
+        self.changeDisplay(self.optionsJson["display"])
 
     def saveOptions(self, optionsJson):
         self.optionsJson = optionsJson
@@ -294,27 +323,42 @@ class AutoMCTimer(tk.Frame):
             optionsFile.write(json.dumps(optionsJson, indent=4))
             optionsFile.close()
 
-    def openOptionMenu(self, x):
-        if self.optionsMenu == None or not self.optionsMenu.winfo_exists():
+    def openOptionsMenu(self, x):
+        if not self.inOptions:
+            self.resetKey()
+            self.inOptions = True
             self.unloadKeys()
             self.optionsMenu = OptionsMenu(self)
 
-    def changeDisplay(self, fontName=None, fontSize1=None, fontSize2=None, fontColour=None, bgColour=None):
-        if fontName != None:
-            for timerFont in [self.rtaFont, self.igtFont]:
-                timerFont.config(family=fontName)
-        if fontSize1 != None:
-            self.rtaFont.config(size=fontSize1)
-        if fontSize2 != None:
-            self.igtFont.config(size=fontSize2)
-        if fontColour != None:
-            for timerLabel in [self.rtaTimer, self.igtTimer]:
-                timerLabel.config(fg=fontColour)
-        if bgColour != None:
-            for timerLabel in [self.rtaTimer, self.igtTimer]:
-                timerLabel.config(bg=bgColour)
-            self.config(bg=bgColour)
-            self.parent.config(bg=bgColour)
+    def changeDisplay(self, displayJson={}):
+
+        self.parent.config(background=displayJson["bgColour"])
+        self.config(background=displayJson["bgColour"])
+
+        fonts = [self.rtaFont, self.igtFont, self.attemptFont]
+        labels = [self.rtaTimer, self.igtTimer, self.attemptLabel]
+        sizes = [displayJson["rta"]["size"], displayJson["igt"]
+                 ["size"], displayJson["attemptCounter"]["size"]]
+        prefixes = [displayJson["rta"]["prefix"], displayJson["igt"]
+                    ["prefix"], displayJson["attemptCounter"]["prefix"]]
+        prefixVariables = [self.rtaPrefix, self.igtPrefix, self.attemptPrefix]
+
+        for i in range(3):
+            inv = False
+            if sizes[i] in ["0", 0, "", None]:
+                s = 1
+                inv = True
+            else:
+                s = sizes[i]
+            fonts[i].config(family=displayJson["font"], size=s)
+            if inv:
+                labels[i].config(fg=displayJson["bgColour"],
+                                 bg=displayJson["bgColour"])
+            else:
+                labels[i].config(fg=displayJson["fontColour"],
+                                 bg=displayJson["bgColour"])
+
+            prefixVariables[i].set(prefixes[i])
 
     def getTimerFrame(self):
         return self
@@ -323,12 +367,12 @@ class AutoMCTimer(tk.Frame):
 class OptionsMenu(tk.Toplevel):
     def __init__(self, parent):
         tk.Toplevel.__init__(self, parent)
-        try:
-            self.iconbitmap("AutoMCTimer.exe")
-        except:
-            print("Failed to load icon")
-        self.wm_resizable(False, False)
         self.parent = parent
+
+        ico = self.getTimerFrame().iconName
+        if ico != None:
+            self.iconbitmap(ico)
+        self.wm_resizable(False, False)
         self.title("AutoMCTimer: Options")
 
         self.protocol("WM_DELETE_WINDOW", self.exit)
@@ -347,13 +391,15 @@ class OptionsMenu(tk.Toplevel):
                 self.saveAndExit()
             else:
                 self.exitWithoutSave()
+
         else:
             self.focus()
         return response
 
     def saveAndExit(self):
-        fontOptions = self.optionsMenuFrame.displaySettings.fontOptions
-        colorOptions = self.optionsMenuFrame.displaySettings.colorOptions
+        displaySettings = self.optionsMenuFrame.displaySettings
+        fontOptions = displaySettings.fontOptions
+        colorOptions = displaySettings.colorOptions
         generalSettings = self.optionsMenuFrame.generalSettings
         self.getTimerFrame().saveOptions(
             {
@@ -364,20 +410,33 @@ class OptionsMenu(tk.Toplevel):
                 },
                 "display": {
                     "font": fontOptions.fontName.get(),
-                    "size1": fontOptions.size1.get(),
-                    "size2": fontOptions.size2.get(),
                     "fontColour": colorOptions.color1,
-                    "bgColour": colorOptions.color2
+                    "bgColour": colorOptions.color2,
+                    "rta": {
+                        "size": displaySettings.RTA.size.get(),
+                        "prefix": displaySettings.RTA.prefix.get()
+                    },
+                    "igt": {
+                        "size": displaySettings.IGT.size.get(),
+                        "prefix": displaySettings.IGT.prefix.get()
+                    },
+                    "attemptCounter": {
+                        "size": displaySettings.AttemptCounter.size.get(),
+                        "prefix": displaySettings.AttemptCounter.prefix.get()
+                    }
                 }
             }
         )
         self.destroy()
         self.getTimerFrame().loadKeys()
+        self.parent.inOptions = False
 
     def exitWithoutSave(self):
         self.getTimerFrame().loadOptions()
+        self.getTimerFrame().attempts = self.optionsMenuFrame.generalSettings.oldAttempts
         self.destroy()
         self.getTimerFrame().loadKeys()
+        self.parent.inOptions = False
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -389,25 +448,25 @@ class OptionsMenuFrame(tk.Frame):
         self.parent = parent
 
         exitButtonsFrame = tk.Frame(self)
-        exitButtonsFrame.grid(row=100, column=0, pady=5, padx=5)
+        exitButtonsFrame.grid(row=0, column=1, pady=5, padx=5, sticky="s")
 
         exitButton = tk.Button(
             exitButtonsFrame, text="Apply", command=parent.saveAndExit)
         exitButton.grid(row=0, column=0, sticky="w", pady=0, padx=5)
 
-        exitButton = tk.Button(
+        exitButton2 = tk.Button(
             exitButtonsFrame, text="Cancel", command=parent.exitWithoutSave)
-        exitButton.grid(row=0, column=1, sticky="w", pady=0, padx=5)
+        exitButton2.grid(row=0, column=1, sticky="w", pady=0, padx=5)
 
         self.generalSettings = GeneralSettings(self)
         self.generalSettings.config(highlightthickness=1,
                                     highlightbackground="black")
-        self.generalSettings.grid(row=1, column=0, sticky="w", pady=5, padx=5)
+        self.generalSettings.grid(row=0, column=1, sticky="n", pady=5, padx=5)
 
         self.displaySettings = DisplaySettings(self)
         self.displaySettings.config(highlightthickness=1,
                                     highlightbackground="black")
-        self.displaySettings.grid(row=2, column=0, sticky="w", pady=5, padx=5)
+        self.displaySettings.grid(row=0, column=0, sticky="w", pady=5, padx=5)
 
     def getTimerFrame(self):
         return self.parent.getTimerFrame()
@@ -418,15 +477,28 @@ class GeneralSettings(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.parent = parent
         tk.Label(self, text="General Settings", font=tkFont.Font(
-            self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0, sticky="w")
+            self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0)
+
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            pady=2, row=1, column=0, sticky="we")
+
         self.mcPath = tk.StringVar(
             self, self.getTimerFrame().optionsJson["mcPath"])
 
         tk.Label(self, text=".minecraft Path:", font=tkFont.Font(
-            self, font=("Arial", 12))).grid(padx=2, pady=2, row=1, column=0, sticky="w")
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=2, column=0)
 
         pathFrame = tk.Frame(self)
-        pathFrame.grid(padx=2, pady=2, row=2, column=0)
+        pathFrame.grid(padx=2, pady=2, row=3, column=0)
+
+        folderbutton = "O"
+        if "win" in platform:
+            folderbutton = "📁"
+
+        tk.Button(pathFrame, text=folderbutton, command=self.choosePath).grid(padx=2, pady=2,
+                                                                              row=0, column=0, sticky="w")
+        tk.Entry(pathFrame, textvariable=self.mcPath,
+                 width=30).grid(padx=2, pady=2, row=0, column=1, sticky="w")
 
         self.keyPause = tk.StringVar(self)
         self.keyPause.set(
@@ -437,24 +509,41 @@ class GeneralSettings(tk.Frame):
 
         self.settingKey = False
 
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            pady=2, row=4, column=0, sticky="we")
+
+        attemptsFrame = tk.Frame(self)
+        attemptsFrame.grid(padx=2, pady=2, row=5, column=0)
+
+        tk.Label(attemptsFrame, text="Attempts:", font=tkFont.Font(
+            self, font=("Arial", 12))).grid(padx=2, pady=0, row=0, column=0)
+
+        self.oldAttempts = self.getTimerFrame().attempts
+
+        self.attemptsEntry = IntEntry(attemptsFrame)
+        self.attemptsEntry.configure(width=8)
+        self.attemptsEntry.grid(padx=2, pady=0, row=0, column=1)
+        self.attemptsEntry.insert(0, str(self.oldAttempts))
+
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            pady=2, row=6, column=0, sticky="we")
+
         tk.Label(self, text="Keybinds:", font=tkFont.Font(
-            self, font=("Arial", 12))).grid(padx=2, pady=2, row=3, column=0, sticky="w")
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=7, column=0)
 
         self.keyPauseButton = tk.Button(
             self, text="Pause/Continue: "+self.keyPause.get(), width=29, command=self.setKeyPause)
-        self.keyPauseButton.grid(padx=2, pady=2, row=4, column=0, sticky="w")
+        self.keyPauseButton.grid(padx=2, pady=2, row=8, column=0)
         self.keyResetButton = tk.Button(
             self, text="Reset: "+self.keyReset.get(), width=29, command=self.setKeyReset)
-        self.keyResetButton.grid(padx=2, pady=2, row=5, column=0, sticky="w")
+        self.keyResetButton.grid(padx=2, pady=2, row=9, column=0)
 
-        folderbutton = "O"
-        if "win" in platform:
-            folderbutton = "📁"
+        self.after(0, self.loop)
 
-        tk.Button(pathFrame, text=folderbutton, command=self.choosePath).grid(padx=2, pady=2,
-                                                                              row=0, column=0, sticky="w")
-        tk.Entry(pathFrame, textvariable=self.mcPath,
-                 width=30).grid(padx=2, pady=2, row=0, column=1, sticky="w")
+    def loop(self):
+        self.after(100, self.loop)
+        self.getTimerFrame().attempts = 0 if self.attemptsEntry.get(
+        ) == "" else int(self.attemptsEntry.get())
 
     def setKeyPause(self):
         if not self.settingKey:
@@ -489,20 +578,46 @@ class DisplaySettings(tk.Frame):
         self.parent = parent
 
         tk.Label(self, text="Display Settings", font=tkFont.Font(
-            self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0, sticky="w")
+            self, font=("Arial", 15))).grid(padx=2, pady=2, row=0, column=0)
+
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            pady=2, row=1, column=0, sticky="we")
+
         tk.Label(self, text="Font:", font=tkFont.Font(
-            self, font=("Arial", 12))).grid(padx=2, pady=2, row=1, column=0, sticky="w")
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=2, column=0)
 
         self.fontOptions = FontOptions(self)
-        self.fontOptions.grid(padx=2, pady=2, row=2, column=0, sticky="w")
+        self.fontOptions.grid(padx=2, pady=2, row=3, column=0)
+
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            pady=2, row=4, column=0, sticky="we")
 
         tk.Label(self, text="Color (Font, Background):", font=tkFont.Font(
-            self, font=("Arial", 12))).grid(padx=2, pady=2, row=3, column=0, sticky="w")
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=5, column=0)
 
         self.colorOptions = ColorOptions(self)
-        self.colorOptions.grid(padx=2, pady=2, row=4, column=0, sticky="w")
+        self.colorOptions.grid(padx=2, pady=2, row=6, column=0)
 
-        self.lastFont = ""
+        ttk.Separator(self, orient=tk.HORIZONTAL).grid(
+            pady=2, row=7, column=0, sticky="we")
+
+        tk.Label(self, text="Sizes/Prefixes:", font=tkFont.Font(
+            self, font=("Arial", 12))).grid(padx=2, pady=2, row=8, column=0)
+
+        display = self.getTimerFrame().optionsJson["display"]
+
+        self.RTA = TextOption(
+            self, "RTA", display["rta"]["size"], display["rta"]["prefix"])
+        self.RTA.grid(padx=2, pady=2, row=9, column=0, sticky="e")
+
+        self.IGT = TextOption(
+            self, "IGT", display["igt"]["size"], display["igt"]["prefix"])
+        self.IGT.grid(padx=2, pady=2, row=10, column=0, sticky="e")
+
+        self.AttemptCounter = TextOption(
+            self, "Attempts", display["attemptCounter"]["size"], display["attemptCounter"]["prefix"])
+        self.AttemptCounter.grid(padx=2, pady=2, row=11, column=0, sticky="e")
+
         self.after(0, self.loop)
 
     def getTimerFrame(self):
@@ -512,10 +627,48 @@ class DisplaySettings(tk.Frame):
         return 0 if x == "" else int(x)
 
     def loop(self):
-        self.getTimerFrame().changeDisplay(fontName=self.fontOptions.fontName.get().rstrip(), fontSize1=self.toInt(self.fontOptions.size1.get()),
-                                           fontSize2=self.toInt(self.fontOptions.size2.get()), fontColour=self.colorOptions.color1, bgColour=self.colorOptions.color2)
-
+        self.getTimerFrame().changeDisplay(displayJson={
+            "font": self.fontOptions.fontName.get(),
+            "fontColour": self.colorOptions.color1,
+            "bgColour": self.colorOptions.color2,
+            "rta": {
+                "size": self.RTA.size.get(),
+                "prefix": self.RTA.prefix.get()
+            },
+            "igt": {
+                "size": self.IGT.size.get(),
+                "prefix": self.IGT.prefix.get()
+            },
+            "attemptCounter": {
+                "size": self.AttemptCounter.size.get(),
+                "prefix": self.AttemptCounter.prefix.get()
+            }
+        })
         self.after(200, self.loop)
+
+
+class TextOption(tk.Frame):
+    def __init__(self, parent, textName="RTA", defaultSize="50", defaultPrefix=""):
+        tk.Frame.__init__(self, parent)
+        tk.Label(self, text=textName+": ").grid(padx=2,
+                                                pady=2, row=0, column=0)
+        self.size = IntEntry(self, max=100)
+        self.size.grid(padx=2, pady=2, row=0, column=1, sticky="w")
+        self.size.config(width=3)
+        self.size.insert(0, defaultSize)
+        self.prefix = tk.Entry(self, width=18)
+        self.prefix.grid(
+            padx=2, pady=2, row=0, column=2, sticky="w")
+        self.prefix.insert(0, defaultPrefix)
+
+    def get(self):
+        return {
+            "size": self.size.get(),
+            "prefix": self.prefix.get()
+        }
+
+    def getTimerFrame(self):
+        return self.parent.getTimerFrame()
 
 
 class FontOptions(tk.Frame):
@@ -528,18 +681,8 @@ class FontOptions(tk.Frame):
         self.fontName = tk.StringVar(self, value=display["font"])
         tk.Button(self, text="Open List", command=self.openFontList, width=7).grid(padx=2, pady=2,
                                                                                    row=0, column=0, sticky="w")
-        tk.Entry(self, textvariable=self.fontName, width=15).grid(padx=2, pady=2,
+        tk.Entry(self, textvariable=self.fontName, width=22).grid(padx=2, pady=2,
                                                                   row=0, column=1, sticky="w")
-
-        self.size1 = IntEntry(self, 100)
-        self.size1.config(width=3)
-        self.size1.grid(padx=2, pady=2, row=0, column=2)
-        self.size1.insert(0, str(display["size1"]))
-
-        self.size2 = IntEntry(self, 100)
-        self.size2.config(width=3)
-        self.size2.insert(0, str(display["size2"]))
-        self.size2.grid(padx=2, pady=2, row=0, column=3)
 
     def openFontList(self):
         filename = "AMCTfonts.html"
