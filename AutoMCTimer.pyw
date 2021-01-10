@@ -4,15 +4,16 @@ import time
 import tkinter.font as tkFont
 import tkinter.colorchooser as tkColorChooser
 import tkinter.filedialog as tkFileDialog
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from sys import maxsize, platform
 import webbrowser
 from os import getcwd, mkdir, system, listdir
 from os.path import expanduser, isfile, isdir, getmtime
 import json
-import tkinter.messagebox
 
-amctVersion = "v1.5"
+
+
+amctVersion = "v1.5.2"
 
 
 def readKey(timeout):
@@ -57,7 +58,10 @@ class AutoMCTimer(tk.Frame):
                 self.iconName = i
 
         if self.iconName != None:
-            parent.iconbitmap(self.iconName)
+            try:
+                parent.iconbitmap(self.iconName)
+            except:
+                pass
 
         self.startTime = 0
         self.addedTime = 0
@@ -108,8 +112,6 @@ class AutoMCTimer(tk.Frame):
 
         self.loadKeys()
 
-        self.parent.focus()
-
         self.after(0, self.loop)
         self.after(0, self.rtaUpdate)
 
@@ -117,7 +119,7 @@ class AutoMCTimer(tk.Frame):
 
             self.update()
 
-            tk.messagebox.askokcancel("AutoMCTimer: Welcome", "Welcome!\nPress escape with the timer open to access the options." + (
+            messagebox.showinfo("AutoMCTimer: Welcome", "Welcome!\nPress escape with the timer open to access the options." + (
                 "\n\nSince you are on linux, please set your .minecraft installation directory." if "linux" in platform else ""))
 
             if "linux" in platform:
@@ -126,14 +128,20 @@ class AutoMCTimer(tk.Frame):
         parent.focus()
 
     def loadKeys(self):
-        self.hotkeyPause = keyboard.add_hotkey(
-            self.optionsJson["keybinds"]["pause"], self.pauseKey)
-        self.hotkeyReset = keyboard.add_hotkey(
-            self.optionsJson["keybinds"]["reset"], self.resetKey)
+        try:
+            self.hotkeyPause = keyboard.add_hotkey(
+                self.optionsJson["keybinds"]["pause"], self.pauseKey)
+            self.hotkeyReset = keyboard.add_hotkey(
+                self.optionsJson["keybinds"]["reset"], self.resetKey)
+        except:
+            messagebox.showwarning("AutoMCTimer: Invalid Hotkeys","Some of your hotkeys are invalid! This may be because you edited the options.json or are using a non-english keyboard layout.")
 
     def unloadKeys(self):
-        keyboard.remove_hotkey(self.hotkeyPause)
-        keyboard.remove_hotkey(self.hotkeyReset)
+        try:
+            keyboard.remove_hotkey(self.hotkeyPause)
+            keyboard.remove_hotkey(self.hotkeyReset)
+        except:
+            pass
 
     def pauseKey(self):
         if self.isRunning:
@@ -371,7 +379,10 @@ class OptionsMenu(tk.Toplevel):
 
         ico = self.getTimerFrame().iconName
         if ico != None:
-            self.iconbitmap(ico)
+            try:
+                self.iconbitmap(ico)
+            except:
+                pass
         self.wm_resizable(False, False)
         self.title("AutoMCTimer: Options")
 
@@ -384,7 +395,7 @@ class OptionsMenu(tk.Toplevel):
         self.focus()
 
     def exit(self):
-        response = tk.messagebox.askyesnocancel(
+        response = messagebox.askyesnocancel(
             "AutoMCTimer: Save", "Save Options?")
         if response != None:
             if response:
@@ -760,22 +771,33 @@ if __name__ == "__main__":
     try:
         import keyboard
     except:
-        if tk.messagebox.askokcancel("AutoMCTimer: Required Module", "Install keyboard module? This module is required to run AutoMCTimer."):
+        if messagebox.askokcancel("AutoMCTimer: Required Module", "Install keyboard module? This module is required to run AutoMCTimer."):
             system('python3 -m pip install keyboard')
             system('python -m pip install keyboard')
-            import keyboard
+            try:
+                import keyboard
+            except:
+                messagebox.showerror("AutoMCTimer: Required Module","Cannot install keyboard module. If you are using multiple versions of python, make sure you uninstall any older versions.")
+                exit()
         else:
             exit()
 
-    try:
-        import mouse
-    except:
-        if tk.messagebox.askokcancel("AutoMCTimer: Required Module", "Install mouse module? This module is required to run AutoMCTimer."):
-            system('python3 -m pip install mouse')
-            system('python -m pip install mouse')
-            import mouse
-        else:
-            exit()
+
+#Don't need mouse module yet
+#    try:
+#        import mouse
+#    except:
+#        if messagebox.askokcancel("AutoMCTimer: Required Module", "Install mouse module? This module is required to run AutoMCTimer."):
+#            system('python3 -m pip install mouse')
+#            system('python -m pip install mouse')
+#            try:
+#                import mouse
+#            except:
+#                messagebox.showerror("AutoMCTimer: Required Module","Cannot install mouse module. If you are using multiple versions of python, make sure you uninstall any older versions.")
+#                exit()
+#        else:
+#            exit()
+
 
     root.title("AutoMCTimer "+amctVersion)
     root.attributes("-topmost", True)
