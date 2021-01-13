@@ -7,13 +7,13 @@ import tkinter.filedialog as tkFileDialog
 from tkinter import ttk, messagebox
 from sys import maxsize, platform
 import webbrowser
-from os import getcwd, mkdir, system, listdir
+from os import getcwd, mkdir, system, listdir, remove
 from os.path import expanduser, isfile, isdir, getmtime
 import json
 
 
 
-amctVersion = "v1.5.2"
+amctVersion = "v1.6.0-pre"
 
 
 def readKey(timeout):
@@ -115,6 +115,11 @@ class AutoMCTimer(tk.Frame):
         self.after(0, self.loop)
         self.after(0, self.rtaUpdate)
 
+        self.mcVersion = -1
+        # 0 = Pre 1.13, 1 = 1.13+
+        self.mcVersion = self.getMCVersion()
+        # print(self.mcVersion)
+
         if self.optionsJson["welcomeMessage"]:
 
             self.update()
@@ -127,6 +132,17 @@ class AutoMCTimer(tk.Frame):
 
         parent.focus()
 
+    def getMCVersion(self):
+        try:
+            nbtfile = nbt.read_from_nbt_file(self.getLatestWorld()+"level.dat")
+            try:
+                nbtfile["Data"]["Version"]
+                return 1
+            except:
+                return 0
+        except:
+            return 1
+
     def loadKeys(self):
         try:
             self.hotkeyPause = keyboard.add_hotkey(
@@ -134,7 +150,8 @@ class AutoMCTimer(tk.Frame):
             self.hotkeyReset = keyboard.add_hotkey(
                 self.optionsJson["keybinds"]["reset"], self.resetKey)
         except:
-            messagebox.showwarning("AutoMCTimer: Invalid Hotkeys","Some of your hotkeys are invalid! This may be because you edited the options.json or are using a non-english keyboard layout.")
+            messagebox.showwarning("AutoMCTimer: Invalid Hotkeys",
+                                   "Some of your hotkeys are invalid! This may be because you edited the options.json or are using a non-english keyboard layout.")
 
     def unloadKeys(self):
         try:
@@ -160,12 +177,22 @@ class AutoMCTimer(tk.Frame):
         if latestWorld == None:
             return 1
         try:
-            statsDir = self.getLatestWorld()+"stats\\"
+            statsDir = self.getLatestWorld()+"stats/"
             if isdir(statsDir):
-                with open(statsDir+listdir(statsDir)[0], "r") as statsFile:
+                statslist = listdir(statsDir)
+                if len(statslist) > 1:
+                    try:
+                        statslist.remove("tempjson.json")
+                        remove(statsDir+"tempjson.json")
+                    except:
+                        pass
+                with open(statsDir+statslist[0], "r") as statsFile:
                     statsJson = json.load(statsFile)
                     statsFile.close()
-                return statsJson["stats"]["minecraft:custom"]["minecraft:play_one_minute"]/20
+                try:
+                    return statsJson["stats"]["minecraft:custom"]["minecraft:play_one_minute"]/20
+                except:
+                    return statsJson["stat.playOneMinute"]/20
             else:
                 return 0
         except:
@@ -235,6 +262,7 @@ class AutoMCTimer(tk.Frame):
                 self.isRunning = False
                 self.addedTime = 0
                 self.isWaiting = True
+                self.mcVersion = self.getMCVersion()
                 self.after(10, self.startWorld)
 
         else:
@@ -242,15 +270,54 @@ class AutoMCTimer(tk.Frame):
             self.igtText.set(self.igtPrefix.get() + self.convertSeconds(0))
             self.attemptText.set(self.attemptPrefix.get()+str(self.attempts))
 
+#logpath = self.expandMCPath("logs/latest.log")
+#started = False
+# with open(logpath, "r") as logFile:
+#    logLines = logFile.readlines()
+#    for i in range(10):
+#        if "logged in with entity id" in logLines[len(logLines)-10+i]:
+#            started = True
+#    logFile.close()
+
     def startWorld(self):
-        igt = self.getIGT()
-        if igt != 0.0:
-            self.isRunning = True
-            self.addedTime = 0
-            self.startTime = time.time()
-            self.isWaiting = False
+        if self.mcVersion == 1:
+            igt = self.getIGT()
+            if igt != 0.0:
+                self.isRunning = True
+                self.addedTime = 0
+                self.startTime = time.time()
+                self.isWaiting = False
+            else:
+                self.after(10, self.startWorld)
         else:
-            self.after(10, self.startWorld)
+            logpath = self.expandMCPath("logs/latest.log")
+            started = False
+            with open(logpath, "r") as logFile:
+                logLines = logFile.readlines()
+                for i in range(5):
+                    try:
+                        if "logged in with entity id" in logLines[len(logLines)-5+i]:
+                            started = True
+                    except:
+                        pass
+                            
+                logFile.close()
+            if started:
+                latestWorld = self.getLatestWorld()
+                try:
+                    mkdir(latestWorld+"/stats/")
+                except:
+                    pass
+                with open(latestWorld+"/stats/"+"tempjson.json","w") as tempjson:
+                    tempjson.write("{\"stat.playOneMinute\":1}")
+                    tempjson.close()
+                self.isRunning = True
+                self.addedTime = 0
+                self.startTime = time.time()
+                self.isWaiting = False
+            else:
+                self.after(10, self.startWorld)
+
 
     @staticmethod
     def validateOptionsJson(optionsJson):
@@ -777,13 +844,29 @@ if __name__ == "__main__":
             try:
                 import keyboard
             except:
-                messagebox.showerror("AutoMCTimer: Required Module","Cannot install keyboard module. If you are using multiple versions of python, make sure you uninstall any older versions.")
+                messagebox.showerror("AutoMCTimer: Required Module",
+                                     "Cannot install keyboard module. If you are using multiple versions of python, make sure you uninstall any older versions.")
+                exit()
+        else:
+            exit()
+
+    try:
+        import python_nbt.nbt as nbt
+    except:
+        if messagebox.askokcancel("AutoMCTimer: Required Module", "Install Python-NBT module? This module is required to run AutoMCTimer."):
+            system('python3 -m pip install Python-NBT')
+            system('python -m pip install Python-NBT')
+            try:
+                import python_nbt.nbt as nbt
+            except:
+                messagebox.showerror("AutoMCTimer: Required Module",
+                                     "Cannot install Python-NBT module. If you are using multiple versions of python, make sure you uninstall any older versions.")
                 exit()
         else:
             exit()
 
 
-#Don't need mouse module yet
+# Don't need mouse module yet
 #    try:
 #        import mouse
 #    except:
@@ -797,7 +880,6 @@ if __name__ == "__main__":
 #                exit()
 #        else:
 #            exit()
-
 
     root.title("AutoMCTimer "+amctVersion)
     root.attributes("-topmost", True)
