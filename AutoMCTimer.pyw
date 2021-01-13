@@ -8,12 +8,20 @@ from tkinter import ttk, messagebox
 from sys import maxsize, platform
 import webbrowser
 from os import getcwd, mkdir, system, listdir, remove
-from os.path import expanduser, isfile, isdir, getmtime
+from os.path import expanduser, isfile, isdir, getmtime, join, abspath
 import json
+import pkgutil
 
+amctVersion = "v1.6.0"
 
+def resource_path(relative_path):
+    try:
+        from sys import _MEIPASS
+        base_path = _MEIPASS
+    except Exception:
+        base_path = abspath(".")
+    return join(base_path,relative_path)
 
-amctVersion = "v1.6.0-pre"
 
 
 def readKey(timeout):
@@ -52,16 +60,10 @@ class AutoMCTimer(tk.Frame):
         if not isdir(dataPath):
             mkdir(dataPath)
 
-        self.iconName = None
-        for i in listdir(getcwd()):
-            if "AutoMCTimer" in i and ".exe" in i:
-                self.iconName = i
-
-        if self.iconName != None:
-            try:
-                parent.iconbitmap(self.iconName)
-            except:
-                pass
+        try:
+            parent.iconbitmap(resource_path("Icon.ico"))
+        except:
+            pass
 
         self.startTime = 0
         self.addedTime = 0
@@ -444,12 +446,10 @@ class OptionsMenu(tk.Toplevel):
         tk.Toplevel.__init__(self, parent)
         self.parent = parent
 
-        ico = self.getTimerFrame().iconName
-        if ico != None:
-            try:
-                self.iconbitmap(ico)
-            except:
-                pass
+        try:
+            self.iconbitmap(resource_path("Icon.ico"))
+        except:
+            pass
         self.wm_resizable(False, False)
         self.title("AutoMCTimer: Options")
 
