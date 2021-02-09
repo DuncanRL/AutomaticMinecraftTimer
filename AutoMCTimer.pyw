@@ -12,7 +12,7 @@ from os.path import expanduser, isfile, isdir, getmtime, join, abspath
 import json
 import pkgutil
 
-amctVersion = "v1.6.2"
+amctVersion = "v1.6.3"
 
 
 def resource_path(relative_path):
