@@ -12,7 +12,8 @@ from os.path import expanduser, isfile, isdir, getmtime, join, abspath
 import json
 import pkgutil
 
-amctVersion = "v1.6.0"
+amctVersion = "v1.6.2"
+
 
 def resource_path(relative_path):
     try:
@@ -20,8 +21,7 @@ def resource_path(relative_path):
         base_path = _MEIPASS
     except Exception:
         base_path = abspath(".")
-    return join(base_path,relative_path)
-
+    return join(base_path, relative_path)
 
 
 def readKey(timeout):
@@ -104,6 +104,9 @@ class AutoMCTimer(tk.Frame):
 
         self.optionsJson = None
         self.loadOptions()
+
+        self.latestWorld = self.getLatestWorld()
+        self.logPath = self.expandMCPath("logs/latest.log")
 
         startw = self.optionsJson["windowSize"][0]
         starth = self.optionsJson["windowSize"][1]
@@ -259,67 +262,54 @@ class AutoMCTimer(tk.Frame):
             igt = self.getIGT()
             self.igtText.set(self.igtPrefix.get() + self.convertSeconds(igt))
 
-            if igt == 0 and not self.isWaiting:
+            if igt == 0 and not self.isWaiting and self.getLatestWorld() != self.latestWorld:
+                self.latestWorld = self.getLatestWorld()
+                print("Starting run: " +self.latestWorld)
                 self.attempts += 1
                 self.isRunning = False
                 self.addedTime = 0
                 self.isWaiting = True
-                self.mcVersion = self.getMCVersion()
-                self.after(10, self.startWorld)
+                with open(self.logPath, "r") as logFile:
+                    self.logMTime = getmtime(self.logPath)
+                    self.logLineLen = len(logFile.readlines())
+                    logFile.close()
+                self.after(10, self.startWorldLoop)
 
         else:
             self.after(100, self.loop)
             self.igtText.set(self.igtPrefix.get() + self.convertSeconds(0))
             self.attemptText.set(self.attemptPrefix.get()+str(self.attempts))
 
-#logpath = self.expandMCPath("logs/latest.log")
-#started = False
-# with open(logpath, "r") as logFile:
-#    logLines = logFile.readlines()
-#    for i in range(10):
-#        if "logged in with entity id" in logLines[len(logLines)-10+i]:
-#            started = True
-#    logFile.close()
+    def startWorldLoop(self):
 
-    def startWorld(self):
-        if self.mcVersion == 1:
-            igt = self.getIGT()
-            if igt != 0.0:
-                self.isRunning = True
-                self.addedTime = 0
-                self.startTime = time.time()
-                self.isWaiting = False
-            else:
-                self.after(10, self.startWorld)
-        else:
-            logpath = self.expandMCPath("logs/latest.log")
-            started = False
-            with open(logpath, "r") as logFile:
+        started = False
+
+        newMTime = getmtime(self.logPath)
+
+        if self.logMTime != newMTime:
+            self.logMTime = newMTime
+            with open(self.logPath, "r") as logFile:
                 logLines = logFile.readlines()
-                for i in range(5):
-                    try:
-                        if "logged in with entity id" in logLines[len(logLines)-5+i]:
-                            started = True
-                    except:
-                        pass
-                            
-                logFile.close()
-            if started:
-                latestWorld = self.getLatestWorld()
-                try:
-                    mkdir(latestWorld+"/stats/")
-                except:
-                    pass
-                with open(latestWorld+"/stats/"+"tempjson.json","w") as tempjson:
-                    tempjson.write("{\"stat.playOneMinute\":1}")
-                    tempjson.close()
-                self.isRunning = True
-                self.addedTime = 0
-                self.startTime = time.time()
-                self.isWaiting = False
-            else:
-                self.after(10, self.startWorld)
+                newLen = len(logLines)
 
+                if newLen != self.logLineLen:
+
+                    for i in range(self.logLineLen, newLen):
+                        if "logged in with entity id" in logLines[i]:
+                            started = True
+                            print(logLines[i].rstrip())
+
+                    self.logLineLen = newLen
+
+                logFile.close()
+        if started:
+            self.latestWorld = self.getLatestWorld()
+            self.isRunning = True
+            self.addedTime = 0
+            self.startTime = time.time()
+            self.isWaiting = False
+        else:
+            self.after(10, self.startWorldLoop)
 
     @staticmethod
     def validateOptionsJson(optionsJson):
