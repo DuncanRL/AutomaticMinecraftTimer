@@ -12,7 +12,7 @@ from os.path import expanduser, isfile, isdir, getmtime, join, abspath
 import json
 import pkgutil
 
-amctVersion = "v1.6.3"
+amctVersion = "v1.6.4"
 
 
 def resource_path(relative_path):
@@ -106,6 +106,7 @@ class AutoMCTimer(tk.Frame):
         self.loadOptions()
 
         self.latestWorld = self.getLatestWorld()
+        self.savesNum = len(listdir(self.expandMCPath("saves")))
         self.logPath = self.expandMCPath("logs/latest.log")
 
         startw = self.optionsJson["windowSize"][0]
@@ -120,11 +121,6 @@ class AutoMCTimer(tk.Frame):
         self.after(0, self.loop)
         self.after(0, self.rtaUpdate)
 
-        self.mcVersion = -1
-        # 0 = Pre 1.13, 1 = 1.13+
-        self.mcVersion = self.getMCVersion()
-        # print(self.mcVersion)
-
         if self.optionsJson["welcomeMessage"]:
 
             self.update()
@@ -136,17 +132,6 @@ class AutoMCTimer(tk.Frame):
                 self.openOptionsMenu(1)
 
         parent.focus()
-
-    def getMCVersion(self):
-        try:
-            nbtfile = nbt.read_from_nbt_file(self.getLatestWorld()+"level.dat")
-            try:
-                nbtfile["Data"]["Version"]
-                return 1
-            except:
-                return 0
-        except:
-            return 1
 
     def loadKeys(self):
         try:
@@ -177,21 +162,14 @@ class AutoMCTimer(tk.Frame):
         self.isRunning = False
         self.addedTime = 0
 
-    def getIGT(self):
-        latestWorld = self.getLatestWorld()
-        if latestWorld == None:
+    def getIGT(self,world):
+        if world == None:
             return 1
         try:
-            statsDir = self.getLatestWorld()+"stats/"
+            statsDir = join(world,"stats")
             if isdir(statsDir):
                 statslist = listdir(statsDir)
-                if len(statslist) > 1:
-                    try:
-                        statslist.remove("tempjson.json")
-                        remove(statsDir+"tempjson.json")
-                    except:
-                        pass
-                with open(statsDir+statslist[0], "r") as statsFile:
+                with open(join(statsDir,statslist[0]), "r") as statsFile:
                     statsJson = json.load(statsFile)
                     statsFile.close()
                 try:
@@ -218,26 +196,14 @@ class AutoMCTimer(tk.Frame):
 
     def getLatestWorld(self):
         try:
-            worlds = []
-            for i in listdir(self.expandMCPath("saves")):
-                if isfile(self.expandMCPath("saves/"+i+"/level.dat")):
-                    worlds.append(i)
-
-            latestWorld = None
-            lastestTime = 0
-            for i in worlds:
-                timeForI = getmtime(self.expandMCPath("saves/"+i))
-                if timeForI > lastestTime:
-                    lastestTime = timeForI
-                    latestWorld = i
-
-            return self.expandMCPath("saves/"+latestWorld+"/")
-
+            savesDir = self.expandMCPath("saves")
+            latestWorld = max([join(savesDir, i) for i in listdir(savesDir) if isfile(join(savesDir,i,"level.dat"))], key=getmtime)
+            return latestWorld
         except:
             return None
 
     def expandMCPath(self, path):
-        return self.optionsJson["mcPath"] + path
+        return join(self.optionsJson["mcPath"], path).replace("\\","/")
 
     def rtaUpdate(self):
         if self.inOptions:
@@ -255,16 +221,24 @@ class AutoMCTimer(tk.Frame):
 
     def loop(self):
         if not self.inOptions:
+
             self.after(500, self.loop)
 
             self.attemptText.set(self.attemptPrefix.get()+str(self.attempts))
 
-            igt = self.getIGT()
+            savesNum = len(listdir(self.expandMCPath("saves")))
+
+            latestWorld = self.latestWorld
+            if savesNum != self.savesNum:
+                self.savesNum = savesNum
+                latestWorld = self.getLatestWorld()
+
+            igt = self.getIGT(latestWorld)
             self.igtText.set(self.igtPrefix.get() + self.convertSeconds(igt))
 
             if igt == 0 and not self.isWaiting and self.getLatestWorld() != self.latestWorld:
                 self.latestWorld = self.getLatestWorld()
-                print("Starting run: " +self.latestWorld)
+                print("Starting run: " + self.latestWorld)
                 self.attempts += 1
                 self.isRunning = False
                 self.addedTime = 0
