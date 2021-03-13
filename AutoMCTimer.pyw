@@ -1,3 +1,4 @@
+# other modules
 import global_hotkeys
 import os
 import time
@@ -5,11 +6,16 @@ import threading
 import json
 import tkinter as tk
 import tkinter.font as tkFont
+from sys import platform
+# modules for this project
 from Element import *
 from Timer import *
 from KeybindManager import *
-amctVersion = "v2.0.0-preview"
+from DragableWindow import *
+from OptionsMenu import *
 
+# info
+amctVersion = "v2.0.0-preview"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -20,7 +26,8 @@ f1,f2,f3...
 
 backspace, tab, clear, enter, shift, control, alt, pause, caps_lock, escape, space, page_up, page_down, end, home, left, up, right, down, select, print, execute, enter, print_screen, insert, delete, help
 
-multiply_key, add_key, separator_key, subtract_key, decimal_key, divide_key, num_lock, scroll_lock, left_shift, right_shift,  left_control, right_control, left_menu, right_menu, browser_back, browser_forward, browser_refresh, browser_stop, browser_search, browser_favorites, browser_start_and_home, volume_mute, volume_Down, volume_up, next_track, previous_track, stop_media, play/pause_media, start_mail, select_media, start_application_1, start_application_2, attn_key, crsel_key, exsel_key, play_key, zoom_key, clear_key
+multiply_key, add_key, separator_key, subtract_key, decimal_key, divide_key, num_lock, scroll_lock, left_shift, right_shift,  left_control, right_control, left_menu, right_menu, browser_back, browser_forward, browser_refresh, browser_stop, browser_search, browser_favorites, browser_start_and_home, volume_mute, volume_Down, volume_up, next_track, previous_track, stop_media, play/ \
+    pause_media, start_mail, select_media, start_application_1, start_application_2, attn_key, crsel_key, exsel_key, play_key, zoom_key, clear_key
 
 '''
 
@@ -34,25 +41,25 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-class TimerApp(tk.Tk):
+class TimerApp(tk.Tk, DragableWindow):
     def __init__(self):
         tk.Tk.__init__(self)
         self.protocol("WM_DELETE_WINDOW", self.exit)
+        DragableWindow.__init__(self)
 
         self.translation = {
             "rta": "Real-Time Attack",
             "igt": "In-Game Time",
-            "attempts": "Attempts Counter"
+            "attempts": "Attempts Counter",
+            "endermen": "Enderman Kill Counter",
+            "blaze": "Blaze Kill Counter"
         }
-
-        self.bg = "#000000"
-        self.config(bg=self.bg)
 
         self.defaultSettings = {
             "settingsVersion": 0,
             "keybinds": {
-                "pause": "\\",
-                "reset": "]"
+                "pause": ["\\"],
+                "reset": ["]"]
             },
             "elements": [
                 {
@@ -60,7 +67,7 @@ class TimerApp(tk.Tk):
                     "position": [0, 0],
                     "color":"#ffffff",
                     "prefix":"",
-                    "font":"DS-Digital",
+                    "font":"Arial",
                     "size":50
                 },
                 {
@@ -68,49 +75,99 @@ class TimerApp(tk.Tk):
                     "position": [0, 70],
                     "color":"#ffffff",
                     "prefix":"IGT: ",
-                    "font":"DS-Digital",
+                    "font":"Arial",
                     "size":30
-                },
-                # {
-                #    "type": "attempts",
-                #    "position": [0, 100],
-                #    "color":"#ffffff",
-                #    "prefix":"Attempt #",
-                #    "font":"DS-Digital",
-                #    "size":15
-                # }
-            ],
-            "windowSize": [400, 150],
-            "attemptCounters": [
-                {
-                    "name": "1.16.1 RSG",
-                    "count": 0
                 }
             ],
-            "paths": [
-                os.path.expanduser(
-                    "~/AppData/Roaming/.minecraft").replace("\\", "/")
-            ]
+            "windowSize": [400, 150],
+            "background": "#000000",
+            "attempts": 0,
+            "mcPath": os.path.expanduser("~/AppData/Roaming/.minecraft").replace("\\", "/")
         }
 
         self.title("AutoMCTimer "+amctVersion)
-        self.timer = Timer("C:\\Users\\Duncan\\AppData\\Roaming\\.minecraft\\1.15.2 Fabric")
-        self.selectedAttempts = "1.16.1 RSG"
-
         self.keybindManager = KeybindManager(self)
+        self.optionsMenu = None
+        self.path = expanduser(
+            "~/AppData/Roaming/.automctimer/").replace("\\", "/")
 
-        self.keybindManager.bind(["\\"],"alt+\\".split("+"))
+        self.bind("<Escape>", self.openOptionsMenu)
 
         self.elements = []
-        #self.loadElements(self.defaultSettings["elements"])
+        self.timer = None
+        self.options = None
+        self.bg = "#000000"
+        self.selectedAttempts = ""
 
-    def exit(self,x=0):
+        self.optionsInit()
+
+
+    def removeDeadElements(self):
+        for i in self.elements:
+            if not i.exists:
+                self.elements.remove(i)
+    
+    def recenter(self):
+        self.geometry("+0+0")
+
+    def openOptionsMenu(self, x=0):
+        if self.optionsMenu is None:
+            self.optionsMenu = OptionsMenu(self)
+
+    def optionsInit(self):
+        selectedFilePath = os.path.join(self.path, "selected.txt")
+
+        # Check if there is a selected option stored, if not then create one with "default"
+        if not os.path.isfile(selectedFilePath):
+            with open(selectedFilePath, "w+") as selectedFile:
+                selectedFile.write("default")
+                selectedFile.close()
+
+        # Get the name of the selected option
+        with open(selectedFilePath, "r") as selectedFile:
+            selectedText = selectedFile.read().rstrip()
+            selectedFile.close()
+
+        # Check if the selected option exists, if not then make one with defaults
+        optionsPath = os.path.join(self.path, selectedText+".json")
+        if not os.path.isfile(optionsPath):
+            with open(optionsPath, "w+") as optionsFile:
+                json.dump(self.defaultSettings, optionsFile, indent=4)
+                optionsFile.close()
+
+        # Load the options
+        self.loadOptions(self.loadFile(optionsPath))
+
+    def loadFile(self, filePath):
+        with open(filePath, "r") as optionsFile:
+            optionsJson = json.load(optionsFile)
+            optionsFile.close()
+        return optionsJson
+
+    def loadOptions(self, optionsJson):
+        self.options = optionsJson
+        self.keybindManager.bind(
+            optionsJson["keybinds"]["pause"], optionsJson["keybinds"]["reset"])
+
+        self.geometry(str(optionsJson['windowSize'][0]) +
+                      "x"+str(optionsJson['windowSize'][1]))
+        if self.timer is not None:
+            self.timer.updatePath(optionsJson["mcPath"])
+        else:
+            self.timer = Timer(path=optionsJson["mcPath"])
+
+        self.bg = optionsJson["background"]
+        self.config(bg=self.bg)
+        self.loadElements(optionsJson["elements"])
+
+    def exit(self, x=0):
         self.stop()
         self.destroy()
 
     def stop(self):
         if self.timer is not None:
             self.timer.stop()
+        
 
     def togglePause(self):
         if self.timer is not None:
@@ -124,7 +181,6 @@ class TimerApp(tk.Tk):
     def loadElements(self, elements):
         for i in self.elements:
             i.remove()
-        self.elements = []
         for elementJson in elements:
             element = Element.fromIdentifier(elementJson["type"], self)
             opt = element.options
@@ -139,12 +195,25 @@ class TimerApp(tk.Tk):
             self.elements.append(element)
 
     def getRTA(self):
-        return self.convertSeconds(self.timer.getRTA())
+        if self.timer is not None:
+            return self.convertSeconds(self.timer.getRTA())
+        else:
+            return self.convertSeconds(0)
 
     def getIGT(self):
-        return self.convertSeconds(self.timer.getIGT())
+        if self.timer is not None:
+            return self.convertSeconds(self.timer.getIGT())
+        else:
+            return self.convertSeconds(0)
 
-    def convertSeconds(self, seconds: float):
+    def getAttempts(self):
+        if self.timer is not None:
+            return str(self.timer.getAttempts())
+        else:
+            return "0"
+
+    @staticmethod
+    def convertSeconds(seconds: float):
         x = seconds
         Seconds = "%.3f" % (x-(int(x)-(int(x) % 60)))
         if x % 60 < 10:
@@ -159,16 +228,7 @@ class TimerApp(tk.Tk):
 
 
 if __name__ == "__main__":
-    try:
-        timerApp = TimerApp()
+    timerApp = TimerApp()
+    timerApp.iconbitmap(resource_path("Icon.ico"))
 
-        timerApp.geometry("353x122")
-        timerApp.lift()
-        timerApp.wm_attributes("-topmost", True)
-
-        
-
-        timerApp.mainloop()
-    except ValueError:
-        print(ValueError)
-    
+    timerApp.mainloop()

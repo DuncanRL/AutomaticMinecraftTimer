@@ -1,9 +1,10 @@
 import time
 from Trackers import *
+from os.path import expanduser
 
 
 class Timer:
-    def __init__(self, path):
+    def __init__(self, path=expanduser("~/AppData/Roaming/.minecraft/").replace("\\", "/")):
         self.path = path
         self.savesTracker = None
         self.logsTracker = None
@@ -12,6 +13,7 @@ class Timer:
         # 0 = Stopped, 1 = Going, 2 = Paused
         self.startTime = 0
         self.pauseTime = 0
+        self.attempts = 0
 
         self.updatePath(path)
 
@@ -20,6 +22,16 @@ class Timer:
             return self.savesTracker.getIGT()
         else:
             return 0
+        
+    def newWorldStart(self):
+        self.attempts += 1
+        self.start()
+        
+    def setAttempts(self,attempts):
+        self.attempts = attempts
+    
+    def getAttempts(self):
+        return self.attempts
 
     def getRTA(self):
         if self.state == 0:
@@ -34,7 +46,7 @@ class Timer:
         self.savesTracker = SavesTracker(os.path.join(self.path, "saves"))
         self.logsTracker = LogsTracker(os.path.join(self.path, "logs"))
         self.savesTracker.addNewWorldCall(
-            self.logsTracker.listenUntilWorldStart, (60, self.start))
+            self.logsTracker.listenUntilWorldStart, (60, self.newWorldStart))
         self.savesTracker.addNewWorldCall(self.reset)
 
     def togglePause(self):

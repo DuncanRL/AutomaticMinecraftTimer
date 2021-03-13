@@ -1,12 +1,11 @@
 import global_hotkeys
 
+
 class KeybindManager:
     def __init__(self, timerApp):
         self.timerApp = timerApp
         self.pause = False
         self.reset = False
-        self.pauseKeys = []
-        self.resetKeys = []
 
     def stop(self):
         global_hotkeys.clear_hotkeys()
@@ -16,12 +15,10 @@ class KeybindManager:
 
     def bind(self, pause, reset):
         self.stop()
-        self.pauseKeys = pause
-        self.resetKeys = reset
 
         bindings = [[pause, self._pausePress, self._pauseRelease],
                     [reset, self._resetPress, self._resetRelease]]
-        bindings.sort(reverse=True,key=lambda kb: len(kb[0]))
+        bindings.sort(reverse=True, key=lambda kb: len(kb[0]))
 
         global_hotkeys.register_hotkeys(bindings)
         global_hotkeys.start_checking_hotkeys()
@@ -50,8 +47,8 @@ if __name__ == "__main__":
     class mockTimerApp:
         def __init__(self):
             self.keybindManager = KeybindManager(self)
-            self.keybindManager.bind(["\\"], ["control","\\"])
-            self.keybindManager.bind(["\\"], ["alt","\\"])
+            self.keybindManager.bind(["\\"], ["control", "\\"])
+            self.keybindManager.bind(["\\"], ["alt", "\\"])
 
         def resetTimer(self):
             print("Timer Reset")
@@ -62,4 +59,4 @@ if __name__ == "__main__":
     mockTimerApp()
 
     import time
-    time.sleep(10000) 
+    time.sleep(10000)
