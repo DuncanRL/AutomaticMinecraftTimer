@@ -15,7 +15,7 @@ from DragableWindow import *
 from OptionsMenu import *
 
 # info
-amctVersion = "v2.0.0-preview"
+amctVersion = "v2.0.0-pre1"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
