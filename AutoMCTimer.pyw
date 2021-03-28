@@ -4,6 +4,7 @@ import os
 import time
 import threading
 import json
+import traceback
 import tkinter as tk
 import tkinter.font as tkFont
 from sys import platform
@@ -15,7 +16,7 @@ from DragableWindow import *
 from OptionsMenu import *
 
 # info
-amctVersion = "v2.0.0-pre1"
+amctVersion = "v2.0.0-pre2"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -40,10 +41,17 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-
 class TimerApp(tk.Tk, DragableWindow):
     def __init__(self):
         tk.Tk.__init__(self)
+        try:
+            self.startup()
+        except:
+            traceback.print_exc()
+            self.stop()
+            self.destroy()
+
+    def startup(self):
         self.protocol("WM_DELETE_WINDOW", self.exit)
         DragableWindow.__init__(self)
 
@@ -95,18 +103,16 @@ class TimerApp(tk.Tk, DragableWindow):
 
         self.elements = []
         self.timer = None
-        self.options = None
         self.bg = "#000000"
         self.selectedAttempts = ""
 
         self.optionsInit()
 
-
     def removeDeadElements(self):
         for i in self.elements:
             if not i.exists:
                 self.elements.remove(i)
-    
+
     def recenter(self):
         self.geometry("+0+0")
 
@@ -145,7 +151,12 @@ class TimerApp(tk.Tk, DragableWindow):
         return optionsJson
 
     def loadOptions(self, optionsJson):
-        self.options = optionsJson
+
+        for default in self.defaultSettings:
+            if default not in optionsJson or type(optionsJson[default]) != type(self.defaultSettings[default]):
+                optionsJson[default] = self.defaultSettings[default]
+
+        self.keybinds = optionsJson["keybinds"]
         self.keybindManager.bind(
             optionsJson["keybinds"]["pause"], optionsJson["keybinds"]["reset"])
 
@@ -155,19 +166,48 @@ class TimerApp(tk.Tk, DragableWindow):
             self.timer.updatePath(optionsJson["mcPath"])
         else:
             self.timer = Timer(path=optionsJson["mcPath"])
-
+        self.timer.setAttempts(optionsJson["attempts"])
         self.bg = optionsJson["background"]
+        self.mcPath = optionsJson["mcPath"]
         self.config(bg=self.bg)
         self.loadElements(optionsJson["elements"])
 
+    def saveOptions(self):
+        selectedFilePath = os.path.join(self.path, "selected.txt")
+
+        # Check if there is a selected option stored, if not then create one with "default"
+        if not os.path.isfile(selectedFilePath):
+            with open(selectedFilePath, "w+") as selectedFile:
+                selectedFile.write("default")
+                selectedFile.close()
+
+        # Get the name of the selected option
+        with open(selectedFilePath, "r") as selectedFile:
+            selectedText = selectedFile.read().rstrip()
+            selectedFile.close()
+
+        options = {
+            "settingsVersion": 0,
+            "keybinds": self.keybinds,
+            "elements": [i.toDict() for i in self.elements],
+            "windowSize": [self.winfo_width(), self.winfo_height()],
+            "background": self.bg,
+            "attempts": self.timer.getAttempts(),
+            "mcPath": self.mcPath
+        }
+
+        optionsPath = os.path.join(self.path, selectedText+".json")
+        with open(optionsPath, "w+") as optionsFile:
+            json.dump(options, optionsFile, indent=4)
+
     def exit(self, x=0):
+        self.saveOptions()
         self.stop()
         self.destroy()
 
     def stop(self):
         if self.timer is not None:
             self.timer.stop()
-        
 
     def togglePause(self):
         if self.timer is not None:
@@ -230,5 +270,4 @@ class TimerApp(tk.Tk, DragableWindow):
 if __name__ == "__main__":
     timerApp = TimerApp()
     timerApp.iconbitmap(resource_path("Icon.ico"))
-
     timerApp.mainloop()

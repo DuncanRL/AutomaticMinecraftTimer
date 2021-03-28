@@ -32,7 +32,14 @@ class Element(tk.Frame):
         self.exists = True
 
     def toDict(self):
-        pass
+        return {
+            "type": self.type,
+            "position": self.options.position,
+            "color": self.options.color,
+            "prefix": self.options.prefix,
+            "font": self.options.font,
+            "size": self.options.size
+        }
 
     def updateDisplay(self):
         self.font.config(family=self.options.font, size=self.options.size)
