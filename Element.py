@@ -30,6 +30,8 @@ class Element(tk.Frame):
         self.label.grid(row=0, column=0, sticky="w")
         self.updateDisplay()
         self.exists = True
+        self.beingEdited = False
+        self.editor = None
 
     def toDict(self):
         return {
@@ -153,18 +155,24 @@ class ElementEditor(tk.Toplevel):
         self.old = element.options.copy()
 
         self.entries = tk.Frame(self)
+        self.topEntries = tk.Frame(self.entries)
+        self.topEntries.grid(row=0,column=0)
 
-        self.fontEntry = tk.Entry(self.entries)
+        self.fontEntry = tk.Entry(self.topEntries)
         self.fontEntry.config(width=10)
         self.fontEntry.insert(0, element.options.font)
 
-        self.sizeEntry = IntEntry(self.entries, 200)
+        self.prefixEntry = tk.Entry(self.entries)
+        self.prefixEntry.config(width=35)
+        self.prefixEntry.insert(0, element.options.prefix)
+
+        self.sizeEntry = IntEntry(self.topEntries, 200)
         self.sizeEntry.insert(0, str(element.options.size))
         self.sizeEntry.config(width=4)
 
-        self.colorEntry = ColorEntry(self.entries, element.options.color)
+        self.colorEntry = ColorEntry(self.topEntries, element.options.color)
 
-        self.posFrame = tk.Frame(self.entries)
+        self.posFrame = tk.Frame(self.topEntries)
 
         self.posXEntry = IntEntry(self.posFrame)
         self.posXEntry.config(width=4)
@@ -177,19 +185,22 @@ class ElementEditor(tk.Toplevel):
         self.posXEntry.grid(row=0, column=0, padx=5, pady=0, sticky="w")
         self.posYEntry.grid(row=0, column=1, padx=5, pady=0, sticky="w")
 
-        tk.Label(self.entries, text="Font").grid(
+        tk.Label(self.topEntries, text="Font").grid(
             row=3, column=0, padx=3, pady=0, sticky="w")
-        tk.Label(self.entries, text="Size").grid(
+        tk.Label(self.topEntries, text="Size").grid(
             row=3, column=1, padx=3, pady=0, sticky="w")
-        tk.Label(self.entries, text="Color").grid(
+        tk.Label(self.topEntries, text="Color").grid(
             row=3, column=2, padx=3, pady=0, sticky="w")
-        tk.Label(self.entries, text="Position").grid(
+        tk.Label(self.topEntries, text="Position").grid(
             row=3, column=3, padx=3, pady=0, sticky="w")
+        tk.Label(self.entries, text="Prefix").grid(
+            row=1, column=0, padx=3, pady=0, sticky="w")
 
         self.fontEntry.grid(row=5, column=0, padx=5, pady=0, sticky="w")
         self.sizeEntry.grid(row=5, column=1, padx=5, pady=0, sticky="w")
         self.colorEntry.grid(row=5, column=2, padx=5, pady=0, sticky="w")
         self.posFrame.grid(row=5, column=3, padx=0, pady=0, sticky="w")
+        self.prefixEntry.grid(row=2, column=0, padx=5, pady=0, sticky="w")
 
         self.entries.grid(row=0, column=0)
 
@@ -215,9 +226,17 @@ class ElementEditor(tk.Toplevel):
 
         self.after(0, self.loop)
 
+        if element.beingEdited:
+            self.destroy()
+        else:
+            element.beingEdited = True
+            element.editor = self
+
     def remove(self, x=0):
         self.destroy()
         self.element.remove()
+        if self.element.timerApp.optionsMenu is not None:
+            self.element.timerApp.optionsMenu.elementList.refresh()
 
     def canvasDrag(self, event):
         x = int(self.timerApp.winfo_width() * (min(max(event.x, 0), 200))/200)
@@ -242,6 +261,7 @@ class ElementEditor(tk.Toplevel):
         opt.font = self.fontEntry.get()
         opt.color = self.colorEntry.get()
         opt.size = self.sizeEntry.get()
+        opt.prefix = self.prefixEntry.get()
         opt.position = [int(self.posXEntry.get()), int(self.posYEntry.get())]
         self.element.updateDisplay()
 
@@ -257,32 +277,25 @@ class ElementEditor(tk.Toplevel):
             self.cancel()
         else:
             self.focus()
+        return ans
 
     def save(self):
         if self.verify():
             self.exists = False
             self.destroy()
+            self.element.beingEdited = False
+            self.element.editor = None
 
     def cancel(self, x=0):
         self.destroy()
         self.element.options = self.old
         self.element.updateDisplay()
         self.exists = False
+        self.element.beingEdited = False
+        self.element.editor = None
 
 
 if __name__ == "__main__":
-    from AutoMCTimer import *
-    root = TimerApp()
-    e = RTAElement(root)
-    editor = None
+    import os
+    os.system("python AutoMCTimer.pyw")
 
-    def edit(x=0):
-        global editor
-        if editor == None or not editor.exists:
-            editor = e.edit()
-
-    root.bind("e", edit)
-    root.geometry("353x122")
-    root.overrideredirect(1)
-    DragableWindow.__init__(root)
-    root.mainloop()

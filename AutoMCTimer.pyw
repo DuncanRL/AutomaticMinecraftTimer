@@ -16,7 +16,7 @@ from DragableWindow import *
 from OptionsMenu import *
 
 # info
-amctVersion = "v2.0.0-pre2"
+amctVersion = "v2.0.0-pre3"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -41,6 +41,7 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+
 class TimerApp(tk.Tk, DragableWindow):
     def __init__(self):
         tk.Tk.__init__(self)
@@ -53,11 +54,12 @@ class TimerApp(tk.Tk, DragableWindow):
 
     def startup(self):
         self.protocol("WM_DELETE_WINDOW", self.exit)
+        self.iconbitmap(resource_path("Icon.ico"))
         DragableWindow.__init__(self)
 
         self.translation = {
-            "rta": "Real-Time Attack",
-            "igt": "In-Game Time",
+            "rta": "RTA Timer",
+            "igt": "IGT Timer",
             "attempts": "Attempts Counter",
             "endermen": "Enderman Kill Counter",
             "blaze": "Blaze Kill Counter"
@@ -100,6 +102,8 @@ class TimerApp(tk.Tk, DragableWindow):
             "~/AppData/Roaming/.automctimer/").replace("\\", "/")
 
         self.bind("<Escape>", self.openOptionsMenu)
+        self.bind("r", self.refresh)
+        self.bind("R", self.refresh)
 
         self.elements = []
         self.timer = None
@@ -108,10 +112,19 @@ class TimerApp(tk.Tk, DragableWindow):
 
         self.optionsInit()
 
+    def refresh(self, x=0):
+        if self.optionsMenu is None:
+            self.saveOptions()
+            self.optionsInit()
+
     def removeDeadElements(self):
+        toRemove = []
         for i in self.elements:
             if not i.exists:
-                self.elements.remove(i)
+                toRemove.append(i)
+
+        for i in toRemove:
+            self.elements.remove(i)
 
     def recenter(self):
         self.geometry("+0+0")
@@ -201,9 +214,15 @@ class TimerApp(tk.Tk, DragableWindow):
             json.dump(options, optionsFile, indent=4)
 
     def exit(self, x=0):
-        self.saveOptions()
-        self.stop()
-        self.destroy()
+
+        if self.optionsMenu is None:
+            self.saveOptions()
+            self.stop()
+            self.destroy()
+        else:
+            ans = self.optionsMenu.exit()
+            if ans is not None:
+                self.exit()
 
     def stop(self):
         if self.timer is not None:
@@ -220,7 +239,8 @@ class TimerApp(tk.Tk, DragableWindow):
 
     def loadElements(self, elements):
         for i in self.elements:
-            i.remove()
+            i.destroy()
+        self.elements = []
         for elementJson in elements:
             element = Element.fromIdentifier(elementJson["type"], self)
             opt = element.options
@@ -269,5 +289,4 @@ class TimerApp(tk.Tk, DragableWindow):
 
 if __name__ == "__main__":
     timerApp = TimerApp()
-    timerApp.iconbitmap(resource_path("Icon.ico"))
     timerApp.mainloop()

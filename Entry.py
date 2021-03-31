@@ -33,6 +33,7 @@ class ColorEntry(tk.Button):
         self.changing = False
         self.color = color
         self.parent = parent
+        self.changeCalls = []
 
     def press(self, x=0):
         if not self.changing:
@@ -43,8 +44,13 @@ class ColorEntry(tk.Button):
             if chosen != None:
                 self.color = chosen
                 self.config(bg=chosen)
+                for i in self.changeCalls:
+                    i()
             
             self.parent.focus()
 
     def get(self):
         return self.color
+    
+    def addChangeCall(self,func):
+        self.changeCalls.append(func)
