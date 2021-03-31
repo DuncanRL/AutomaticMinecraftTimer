@@ -48,6 +48,29 @@ class SavesTracker:
                     return 0
         except:
             return 0
+    
+    def getKills(self, mobName, world=None):
+        try:
+            if world == None:
+                world = self.latestWorld
+
+            if self.latestWorld is None:
+                return 0
+            else:
+                statsPath = os.path.join(self.path, world, "stats")
+                statsFiles = os.listdir(statsPath)
+                if len(statsFiles) > 0:
+                    with open(os.path.join(statsPath, statsFiles[0]), "r") as statsFile:
+                        statsJson = json.load(statsFile)
+                        statsFile.close()
+                    try:
+                        return statsJson["stats"]["minecraft:killed"][f"minecraft:{mobName.lower()}"]
+                    except:
+                        return statsJson[f"stat.killEntity.{mobName[0].upper()+mobName[1:].lower()}"]
+                else:
+                    return 0
+        except:
+            return 0
 
     def updateWorldList(self):
         oldList = self.worldList[:]

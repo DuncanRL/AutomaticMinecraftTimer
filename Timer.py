@@ -22,16 +22,29 @@ class Timer:
             return self.savesTracker.getIGT()
         else:
             return 0
-        
+
+    def getKills(self,mobName):
+        if self.savesTracker is not None:
+            return self.savesTracker.getKills(mobName)
+        else:
+            return 0
+
     def newWorldStart(self):
         self.attempts += 1
         self.start()
-        
-    def setAttempts(self,attempts):
+
+    def setAttempts(self, attempts):
         self.attempts = attempts
-    
+
     def getAttempts(self):
         return self.attempts
+
+    def setRTA(self, x):
+        if self.state in [0, 2]:
+            self.state = 2
+            self.pauseTime = x
+        elif self.state == 1:
+            self.startTime = time.time()-x
 
     def getRTA(self):
         if self.state == 0:
@@ -43,6 +56,7 @@ class Timer:
 
     def updatePath(self, path):
         self.end()
+        self.path = path
         self.savesTracker = SavesTracker(os.path.join(self.path, "saves"))
         self.logsTracker = LogsTracker(os.path.join(self.path, "logs"))
         self.savesTracker.addNewWorldCall(
@@ -77,5 +91,4 @@ class Timer:
         self.savesTracker = None
         self.logsTracker = None
 
-    kill = end
-    stop = end
+    kill = stop = end

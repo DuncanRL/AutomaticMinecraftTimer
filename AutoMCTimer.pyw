@@ -7,6 +7,7 @@ import json
 import traceback
 import tkinter as tk
 import tkinter.font as tkFont
+import tkinter.simpledialog as tkSimpleDialog
 from sys import platform
 # modules for this project
 from Element import *
@@ -16,7 +17,7 @@ from DragableWindow import *
 from OptionsMenu import *
 
 # info
-amctVersion = "v2.0.0-pre3"
+amctVersion = "v2.0.0"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -28,9 +29,7 @@ f1,f2,f3...
 backspace, tab, clear, enter, shift, control, alt, pause, caps_lock, escape, space, page_up, page_down, end, home, left, up, right, down, select, print, execute, enter, print_screen, insert, delete, help
 
 multiply_key, add_key, separator_key, subtract_key, decimal_key, divide_key, num_lock, scroll_lock, left_shift, right_shift,  left_control, right_control, left_menu, right_menu, browser_back, browser_forward, browser_refresh, browser_stop, browser_search, browser_favorites, browser_start_and_home, volume_mute, volume_Down, volume_up, next_track, previous_track, stop_media, play/ \
-    pause_media, start_mail, select_media, start_application_1, start_application_2, attn_key, crsel_key, exsel_key, play_key, zoom_key, clear_key
-
-'''
+    pause_media, start_mail, select_media, start_application_1, start_application_2, attn_key, crsel_key, exsel_key, play_key, zoom_key, clear_key'''
 
 
 def resource_path(relative_path):
@@ -104,6 +103,8 @@ class TimerApp(tk.Tk, DragableWindow):
         self.bind("<Escape>", self.openOptionsMenu)
         self.bind("r", self.refresh)
         self.bind("R", self.refresh)
+        self.bind("s", self.setTime)
+        self.bind("S", self.setTime)
 
         self.elements = []
         self.timer = None
@@ -111,6 +112,27 @@ class TimerApp(tk.Tk, DragableWindow):
         self.selectedAttempts = ""
 
         self.optionsInit()
+    
+    def setTime(self, x=0):
+        if self.optionsMenu is None:
+            self.wm_attributes("-topmost",0)
+            ans = tkSimpleDialog.askstring("AMCT: Set Time","Set the time using one of the following:\nxx:xx:xx.xxx\nxx:xx.xxx\nxx.xxx")
+            self.wm_attributes("-topmost",1)
+            if ans is not None:
+                try:
+                    ans = [(i if float(i) > 0 else 0) for i in ans.split(":")]
+                    if len(ans) == 1:
+                        self.timer.setRTA(float(ans[0]))
+                    elif len(ans) == 2:
+                        self.timer.setRTA(60*ans[0]+float(ans[1]))
+                    elif len(ans) == 3:
+                        self.timer.setRTA(60*60*int(ans[0])+60*int(ans[1])+float(ans[2]))
+                    else:
+                        int("Invalid Time Bro lmaooo gotem")
+                except:
+                    traceback.print_exc()
+                    tkMessageBox.showerror("AMCT: Error","Invalid time")
+
 
     def refresh(self, x=0):
         if self.optionsMenu is None:
@@ -170,8 +192,7 @@ class TimerApp(tk.Tk, DragableWindow):
                 optionsJson[default] = self.defaultSettings[default]
 
         self.keybinds = optionsJson["keybinds"]
-        self.keybindManager.bind(
-            optionsJson["keybinds"]["pause"], optionsJson["keybinds"]["reset"])
+        self.rebind()
 
         self.geometry(str(optionsJson['windowSize'][0]) +
                       "x"+str(optionsJson['windowSize'][1]))
@@ -184,6 +205,11 @@ class TimerApp(tk.Tk, DragableWindow):
         self.mcPath = optionsJson["mcPath"]
         self.config(bg=self.bg)
         self.loadElements(optionsJson["elements"])
+    
+    def rebind(self):
+
+        self.keybindManager.bind(
+            self.keybinds["pause"], self.keybinds["reset"])
 
     def saveOptions(self):
         selectedFilePath = os.path.join(self.path, "selected.txt")
@@ -269,6 +295,12 @@ class TimerApp(tk.Tk, DragableWindow):
     def getAttempts(self):
         if self.timer is not None:
             return str(self.timer.getAttempts())
+        else:
+            return "0"
+    
+    def getKills(self, mobName):
+        if self.timer is not None:
+            return str(self.timer.getKills(mobName))
         else:
             return "0"
 

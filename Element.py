@@ -56,6 +56,7 @@ class Element(tk.Frame):
             self.place_forget()
 
     def edit(self):
+        self.timerApp.optionsMenu.withdraw()
         return ElementEditor(self)
 
     def remove(self):
@@ -127,7 +128,8 @@ class EndermenElement(Element):
         self.after(0, self.loop)
 
     def loop(self):
-        pass
+        self.after(1000, self.loop)
+        self.stringVar.set(self.options.prefix+self.timerApp.getKills("enderman"))
 
 
 class BlazeElement(Element):
@@ -137,15 +139,19 @@ class BlazeElement(Element):
         self.after(0, self.loop)
 
     def loop(self):
-        pass
+        self.after(1000, self.loop)
+        self.stringVar.set(self.options.prefix+self.timerApp.getKills("blaze"))
 
 
 class ElementEditor(tk.Toplevel):
     def __init__(self, element):
         tk.Toplevel.__init__(self, element.timerApp)
+        timerApp = element.timerApp
+        self.geometry(
+            f"+{str(timerApp.winfo_width()+timerApp.winfo_x()+10)}+{str(timerApp.winfo_y())}")
         self.exists = True
         self.element = element
-        self.timerApp = element.timerApp
+        self.timerApp = timerApp
         self.protocol("WM_DELETE_WINDOW", self.exit)
         self.title("Edit Element")
         self.wm_attributes("-topmost", 1)
@@ -156,7 +162,7 @@ class ElementEditor(tk.Toplevel):
 
         self.entries = tk.Frame(self)
         self.topEntries = tk.Frame(self.entries)
-        self.topEntries.grid(row=0,column=0)
+        self.topEntries.grid(row=0, column=0)
 
         self.fontEntry = tk.Entry(self.topEntries)
         self.fontEntry.config(width=10)
@@ -237,6 +243,8 @@ class ElementEditor(tk.Toplevel):
         self.element.remove()
         if self.element.timerApp.optionsMenu is not None:
             self.element.timerApp.optionsMenu.elementList.refresh()
+        self.timerApp.optionsMenu.deiconify()
+        self.timerApp.optionsMenu.reposition()
 
     def canvasDrag(self, event):
         x = int(self.timerApp.winfo_width() * (min(max(event.x, 0), 200))/200)
@@ -285,6 +293,8 @@ class ElementEditor(tk.Toplevel):
             self.destroy()
             self.element.beingEdited = False
             self.element.editor = None
+            self.timerApp.optionsMenu.deiconify()
+            self.timerApp.optionsMenu.reposition()
 
     def cancel(self, x=0):
         self.destroy()
@@ -293,9 +303,10 @@ class ElementEditor(tk.Toplevel):
         self.exists = False
         self.element.beingEdited = False
         self.element.editor = None
+        self.timerApp.optionsMenu.deiconify()
+        self.timerApp.optionsMenu.reposition()
 
 
 if __name__ == "__main__":
     import os
     os.system("python AutoMCTimer.pyw")
-
