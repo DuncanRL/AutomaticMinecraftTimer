@@ -86,8 +86,8 @@ class OptionsMenu(tk.Toplevel):
             "endermen"), text=timerApp.translation["endermen"]).grid(row=3, column=0, sticky="NESW")
         tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
             "blaze"), text=timerApp.translation["blaze"]).grid(row=4, column=0, sticky="NESW")
-        tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
-            "glitchigt"), text=timerApp.translation["glitchigt"]).grid(row=5, column=0, sticky="NESW")
+        #tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
+        #    "glitchigt"), text=timerApp.translation["glitchigt"]).grid(row=5, column=0, sticky="NESW")
 
         tk.Label(self.elementFrame, text="Current Elements:", font=tkFont.Font(self, font=("Arial", 10))).grid(
             row=3, column=0, padx=5, pady=5, sticky="w")
