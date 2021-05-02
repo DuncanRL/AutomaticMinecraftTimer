@@ -17,7 +17,7 @@ from DragableWindow import *
 from OptionsMenu import *
 
 # info
-amctVersion = "v2.1.1"
+amctVersion = "v2.1.2"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -158,6 +158,11 @@ class TimerApp(tk.Tk, DragableWindow):
             self.optionsMenu = OptionsMenu(self)
 
     def optionsInit(self):
+        #If there is no .automctimer, make the directories
+        if not os.path.isdir(self.path):
+            os.makedirs(self.path)
+        
+        #Get path to the selected.txt
         selectedFilePath = os.path.join(self.path, "selected.txt")
 
         # Check if there is a selected option stored, if not then create one with "default"
@@ -182,26 +187,33 @@ class TimerApp(tk.Tk, DragableWindow):
         self.loadOptions(self.loadFile(optionsPath))
 
     def loadFile(self, filePath):
+        #convert the json of a filepath to a python dict
         with open(filePath, "r") as optionsFile:
             optionsJson = json.load(optionsFile)
             optionsFile.close()
         return optionsJson
 
     def loadOptions(self, optionsJson):
-
+        #Check that all keys in the dict exist
         for default in self.defaultSettings:
             if default not in optionsJson or type(optionsJson[default]) != type(self.defaultSettings[default]):
                 optionsJson[default] = self.defaultSettings[default]
-
+        
+        #Setup keybinds
         self.keybinds = optionsJson["keybinds"]
         self.rebind()
 
+        #Set window size
         self.geometry(str(optionsJson['windowSize'][0]) +
                       "x"+str(optionsJson['windowSize'][1]))
+        
+        #Create/update internal timer
         if self.timer is not None:
             self.timer.updatePath(optionsJson["mcPath"])
         else:
             self.timer = Timer(path=optionsJson["mcPath"])
+        
+        #Load other variables
         self.timer.setAttempts(optionsJson["attempts"])
         self.bg = optionsJson["background"]
         self.mcPath = optionsJson["mcPath"]
