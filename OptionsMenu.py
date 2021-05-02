@@ -2,6 +2,7 @@ import tkinter as tk
 import tkinter.font as tkFont
 import tkinter.messagebox as tkMessageBox
 import tkinter.filedialog as tkFileDialog
+import tkinter.simpledialog as tkSimpleDialog
 from tkinter import ttk
 import os
 from Element import *
@@ -36,7 +37,7 @@ class OptionsMenu(tk.Toplevel):
     def __init__(self, timerApp=None):
         self.makeHotkeyList()
         tk.Toplevel.__init__(self, timerApp)
-        self.resizable(0,0)
+        self.resizable(0, 0)
         self.timerApp = timerApp
         self.reposition()
         self.iconbitmap(resource_path("Icon.ico"))
@@ -44,7 +45,6 @@ class OptionsMenu(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.exit)
         self.wm_attributes("-topmost", 1)
         self.timerApp.keybindManager.stop()
-        #tk.Label(self,text="\n\nOptions menu still not here but I did a lot of the work to make it possible :)\n\n").pack()
 
         self.oldOptions = {
             "settingsVersion": 0,
@@ -53,17 +53,19 @@ class OptionsMenu(tk.Toplevel):
             "windowSize": [timerApp.winfo_width(), timerApp.winfo_height()],
             "background": timerApp.bg,
             "attempts": timerApp.timer.getAttempts(),
-            "mcPath": timerApp.mcPath
+            "mcPath": timerApp.mcPath,
+            "auto": timerApp.doesAuto
         }
 
         self.elementFrame = tk.LabelFrame(self)
-        self.elementFrame.grid(row=0, column=1, padx=5, pady=5, sticky="nw")
+        self.elementFrame.grid(row=1, column=1, padx=5, pady=5, sticky="nw")
 
         self.leftSide = tk.Frame(self)
-        self.leftSide.grid(row=0, column=0, sticky="nw")
+        self.leftSide.grid(row=1, column=0, sticky="nw")
 
-        self.profileChanger = ProfileChanger(self.leftSide, self)
-        self.profileChanger.grid(row=0, column=0, padx=5, pady=5, sticky="nw")
+        self.profileChanger = ProfileChanger(self, self)
+        self.profileChanger.grid(
+            row=0, column=0, padx=5, pady=5, columnspan=2, sticky="")
 
         tk.Label(self.elementFrame, text="Elements", font=tkFont.Font(self, font=("Arial", 15))).grid(
             row=0, column=0, padx=5, pady=5)
@@ -84,6 +86,8 @@ class OptionsMenu(tk.Toplevel):
             "endermen"), text=timerApp.translation["endermen"]).grid(row=3, column=0, sticky="NESW")
         tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
             "blaze"), text=timerApp.translation["blaze"]).grid(row=4, column=0, sticky="NESW")
+        tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
+            "glitchigt"), text=timerApp.translation["glitchigt"]).grid(row=5, column=0, sticky="NESW")
 
         tk.Label(self.elementFrame, text="Current Elements:", font=tkFont.Font(self, font=("Arial", 10))).grid(
             row=3, column=0, padx=5, pady=5, sticky="w")
@@ -103,7 +107,7 @@ class OptionsMenu(tk.Toplevel):
         tk.Label(self.otherOptions, text="Other Options", font=tkFont.Font(
             self, font=("Arial", 15))).grid(row=1, column=0, padx=5, pady=5)
 
-        for i in range(3):
+        for i in range(4):
             ttk.Separator(self.otherOptions, orient="horizontal").grid(
                 row=10*i+5, column=0, sticky='we')
 
@@ -147,6 +151,20 @@ class OptionsMenu(tk.Toplevel):
             self.lowerPathFrame, text=self.oldOptions["mcPath"], width=25, anchor="e")
         self.pathLabel.grid(row=0, column=1, padx=5, pady=5)
 
+        self.autoFrame = tk.Frame(self.otherOptions)
+        self.autoFrame.grid(row=40, column=0, sticky="w")
+
+        tk.Label(self.autoFrame, text="Automatically start timer \nwhen creating new world").grid(
+            row=0, column=1,padx=5,pady=5)
+        self.autoSwitchButton = tk.Button(
+            self.autoFrame, text="✅" if self.timerApp.doesAuto else "❎", command=self.autoSwitch)
+        self.autoSwitchButton.grid(row=0, column=0,padx=5,pady=5)
+
+    def autoSwitch(self):
+        self.timerApp.doesAuto = not self.timerApp.doesAuto
+        self.timerApp.timer.doesAuto = self.timerApp.doesAuto
+        self.autoSwitchButton.config(text="✅" if self.timerApp.doesAuto else "❎")
+
     def makeHotkeyList(self):
         with open(resource_path("hotkeys.html"), "w+") as site:
             site.write("<!DOCTYPE html><html><body><p>" +
@@ -154,7 +172,8 @@ class OptionsMenu(tk.Toplevel):
             site.close()
 
     def openHotkeyList(self):
-        webbrowser.open("file:///"+resource_path("hotkeys.html").replace("\\","/"))
+        webbrowser.open(
+            "file:///"+resource_path("hotkeys.html").replace("\\", "/"))
 
     def reposition(self):
         self.geometry(
@@ -279,30 +298,47 @@ class KeybindOption(tk.Frame):
         return val
 
 
-class ProfileChanger(tk.LabelFrame):
+class ProfileChanger(tk.Frame):
     def __init__(self, parent, optionsMenu=None):
         if optionsMenu is None:
             optionsMenu = parent
         self.optionsMenu = optionsMenu
-        tk.LabelFrame.__init__(self, parent)
+        tk.Frame.__init__(self, parent)
         selectedProfile = self.getProfile()
         tk.Label(self, text="Selected Profile:\n"+selectedProfile, font=tkFont.Font(
-            self, font=("Arial", 15))).grid(row=0, column=0, padx=5, pady=5)
+            self, font=("Arial", 15)), anchor="center").grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="we")
 
-        tk.Label(self, text="Change/Create Profile:").grid(
-            row=1, column=0, padx=5, pady=5)
+        # tk.Button(self.entryFrame, text="AutoFill", command=self.autoFill).grid(
+        #    row=0, column=1)
 
-        self.entryFrame = tk.Frame(self)
-        self.entryFrame.grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        createFrame = tk.Frame(self)
+        createFrame.grid(row=1, column=0, padx=5, pady=5)
 
-        self.entry = tk.Entry(self.entryFrame, width=20)
-        self.entry.grid(row=0, column=0)
+        tk.Label(createFrame, text="Create:").grid(
+            row=0, column=0, padx=5, pady=5)
 
-        tk.Button(self.entryFrame, text="AutoFill", command=self.autoFill).grid(
-            row=0, column=1)
+        tk.Button(createFrame, text="New Profile", command=self.create).grid(
+            row=1, column=0)
 
-        tk.Button(self.entryFrame, text="Select", command=self.select).grid(
-            row=0, column=2)
+        self.profileList = [
+            i[:-5] for i in os.listdir(self.optionsMenu.timerApp.path) if i[-5:] == ".json"]
+        self.selectedForOpen = self.getProfile()
+
+        if self.selectedForOpen not in self.profileList:
+            self.profileList.append(self.selectedForOpen)
+
+        self.selectedVariable = tk.StringVar(self, value=self.selectedForOpen)
+        openFrame = tk.Frame(self)
+        openFrame.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Label(openFrame, text="Open Profile:",
+                 anchor="center").grid(row=0, column=0, padx=5, pady=5, columnspan=3, sticky="we")
+        tk.Button(openFrame, textvariable=self.selectedVariable, command=self.openButton, width=10).grid(
+            row=1, column=1)
+        tk.Button(openFrame, text="<", command=self.previousButton).grid(
+            row=1, column=0)
+        tk.Button(openFrame, text=">", command=self.nextButton).grid(
+            row=1, column=2)
 
     def getProfile(self):
         selectFilePath = os.path.join(
@@ -312,31 +348,66 @@ class ProfileChanger(tk.LabelFrame):
             selectFile.close()
         return ans
 
-    def autoFill(self):
-        words = [i.lower() for i in self.entry.get().rstrip().split()]
-        for profile in [i[:-5] for i in os.listdir(self.optionsMenu.timerApp.path) if i[-5:] == ".json"]:
-            success = True
-            for word in words:
-                if word not in profile.lower():
-                    success = False
-                    break
-            if success:
-                self.entry.delete(0, 'end')
-                self.entry.insert(0, profile)
-                break
-
-    def select(self):
+    def create(self):
         selectFilePath = os.path.join(
             self.optionsMenu.timerApp.path, "selected.txt")
-        newProfile = self.entry.get().rstrip()
+        newProfile = tkSimpleDialog.askstring(
+            "AMCT: Create Profile", "Enter name of new profile:")
 
-        if newProfile != "":
+        if newProfile is not None and newProfile != "":
+            newProfile = newProfile.rstrip()
+            newProfilePath = os.path.join(
+                self.optionsMenu.timerApp.path, newProfile+".json")
+            oldProfilePath = os.path.join(
+                self.optionsMenu.timerApp.path, self.getProfile()+".json")
             ans = self.optionsMenu.exit()
 
             if ans is not None:
+
+                if not os.path.isfile(newProfilePath):
+                    with open(oldProfilePath, "r") as profileFile:
+                        copyData = profileFile.read()
+                        profileFile.close()
+
+                    with open(newProfilePath, "w+") as profileFile:
+                        profileFile.write(copyData)
+                        profileFile.close()
+
                 with open(selectFilePath, "w+") as selectFile:
                     selectFile.write(newProfile)
                     selectFile.close()
+
+            self.optionsMenu.timerApp.optionsInit()
+            self.optionsMenu.timerApp.update()
+            self.optionsMenu.timerApp.openOptionsMenu()
+
+    def previousButton(self):
+        self.selectedForOpen = self.profileList[self.profileList.index(
+            self.selectedForOpen)-1]
+        self.selectedVariable.set(self.selectedForOpen)
+
+    def nextButton(self):
+        nexti = self.profileList.index(self.selectedForOpen)+1
+        if nexti >= len(self.profileList):
+            nexti += -len(self.profileList)
+        self.selectedForOpen = self.profileList[nexti]
+        self.selectedVariable.set(self.selectedForOpen)
+
+    def openButton(self):
+        self.open(self.selectedForOpen)
+
+    def open(self, profileName: str):
+        profileName = profileName.rstrip()
+        newProfilePath = os.path.join(
+            self.optionsMenu.timerApp.path, profileName + ".json")
+        selectFilePath = os.path.join(
+            self.optionsMenu.timerApp.path, "selected.txt")
+        ans = self.optionsMenu.exit()
+
+        if ans is not None:
+            with open(selectFilePath, "w+") as selectFile:
+                selectFile.write(profileName)
+                selectFile.close()
 
             self.optionsMenu.timerApp.optionsInit()
             self.optionsMenu.timerApp.update()
@@ -362,10 +433,19 @@ class ElementList(tk.Frame):
             row += 1
 
     def add(self, elementID):
-        e = Element.fromIdentifier(elementID, self.optionsMenu.timerApp)
-        self.optionsMenu.timerApp.elements.append(e)
-        e.edit()
-        self.refresh()
+        addit = True
+        for i in self.optionsMenu.timerApp.elements:
+            if i.type == elementID:
+                addit = False
+                if tkMessageBox.askyesno("AMCT: Confirm Element Add", "You already have a "+self.optionsMenu.timerApp.translation[elementID]+" element, are you sure you want to add another?") == True:
+                    addit = True
+                break
+
+        if addit:
+            e = Element.fromIdentifier(elementID, self.optionsMenu.timerApp)
+            self.optionsMenu.timerApp.elements.append(e)
+            e.edit()
+            self.refresh()
 
 
 class ElementItem(tk.LabelFrame):

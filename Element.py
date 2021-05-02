@@ -14,7 +14,8 @@ class Element(tk.Frame):
             "igt": IGTElement,
             "attempts": AttemptsElement,
             "endermen": EndermenElement,
-            "blaze": BlazeElement
+            "blaze": BlazeElement,
+            "glitchigt": GlitchIGTElement
         }
         return ids[id](timerApp)
 
@@ -141,6 +142,17 @@ class BlazeElement(Element):
     def loop(self):
         self.after(1000, self.loop)
         self.stringVar.set(self.options.prefix+self.timerApp.getKills("blaze"))
+
+
+class GlitchIGTElement(Element):
+    def __init__(self, timerApp):
+        self.type = "glitchigt"
+        Element.__init__(self, timerApp)
+        self.after(0, self.loop)
+
+    def loop(self):
+        self.after(1000, self.loop)
+        self.stringVar.set(self.options.prefix+self.timerApp.getAltIGT())
 
 
 class ElementEditor(tk.Toplevel):

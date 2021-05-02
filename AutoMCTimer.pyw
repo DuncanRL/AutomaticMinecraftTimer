@@ -17,7 +17,7 @@ from DragableWindow import *
 from OptionsMenu import *
 
 # info
-amctVersion = "v2.0.0"
+amctVersion = "v2.1.0"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -61,7 +61,8 @@ class TimerApp(tk.Tk, DragableWindow):
             "igt": "IGT Timer",
             "attempts": "Attempts Counter",
             "endermen": "Enderman Kill Counter",
-            "blaze": "Blaze Kill Counter"
+            "blaze": "Blaze Kill Counter",
+            "glitchigt": "level.dat Time"
         }
 
         self.defaultSettings = {
@@ -91,7 +92,8 @@ class TimerApp(tk.Tk, DragableWindow):
             "windowSize": [400, 150],
             "background": "#000000",
             "attempts": 0,
-            "mcPath": os.path.expanduser("~/AppData/Roaming/.minecraft").replace("\\", "/")
+            "mcPath": os.path.expanduser("~/AppData/Roaming/.minecraft").replace("\\", "/"),
+            "auto": True
         }
 
         self.title("AutoMCTimer "+amctVersion)
@@ -203,6 +205,7 @@ class TimerApp(tk.Tk, DragableWindow):
         self.timer.setAttempts(optionsJson["attempts"])
         self.bg = optionsJson["background"]
         self.mcPath = optionsJson["mcPath"]
+        self.doesAuto = optionsJson["auto"]
         self.config(bg=self.bg)
         self.loadElements(optionsJson["elements"])
     
@@ -232,7 +235,8 @@ class TimerApp(tk.Tk, DragableWindow):
             "windowSize": [self.winfo_width(), self.winfo_height()],
             "background": self.bg,
             "attempts": self.timer.getAttempts(),
-            "mcPath": self.mcPath
+            "mcPath": self.mcPath,
+            "auto": self.doesAuto
         }
 
         optionsPath = os.path.join(self.path, selectedText+".json")
@@ -289,6 +293,12 @@ class TimerApp(tk.Tk, DragableWindow):
     def getIGT(self):
         if self.timer is not None:
             return self.convertSeconds(self.timer.getIGT())
+        else:
+            return self.convertSeconds(0)
+
+    def getAltIGT(self):
+        if self.timer is not None:
+            return self.convertSeconds(self.timer.getAltIGT())
         else:
             return self.convertSeconds(0)
 

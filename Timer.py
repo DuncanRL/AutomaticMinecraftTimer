@@ -8,6 +8,7 @@ class Timer:
         self.path = path
         self.savesTracker = None
         self.logsTracker = None
+        self.doesAuto = True
 
         self.state = 0
         # 0 = Stopped, 1 = Going, 2 = Paused
@@ -23,6 +24,12 @@ class Timer:
         else:
             return 0
 
+    def getAltIGT(self):
+        if self.savesTracker is not None:
+            return self.savesTracker.getAltIGT()
+        else:
+            return 0
+
     def getKills(self,mobName):
         if self.savesTracker is not None:
             return self.savesTracker.getKills(mobName)
@@ -30,8 +37,9 @@ class Timer:
             return 0
 
     def newWorldStart(self):
+        if self.doesAuto:
+            self.start()
         self.attempts += 1
-        self.start()
 
     def setAttempts(self, attempts):
         self.attempts = attempts
@@ -61,7 +69,7 @@ class Timer:
         self.logsTracker = LogsTracker(os.path.join(self.path, "logs"))
         self.savesTracker.addNewWorldCall(
             self.logsTracker.listenUntilWorldStart, (60, self.newWorldStart))
-        self.savesTracker.addNewWorldCall(self.reset)
+        self.savesTracker.addNewWorldCall(self.resetCall)
 
     def togglePause(self):
         if self.state in [0, 2]:
@@ -78,6 +86,10 @@ class Timer:
         if self.state == 1:
             self.pauseTime = time.time() - self.startTime
             self.state = 2
+    
+    def resetCall(self):
+        if self.doesAuto:
+            self.reset()
 
     def reset(self):
         self.state = 0

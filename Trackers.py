@@ -2,6 +2,7 @@ import threading
 import os
 import time
 import json
+from python_nbt import nbt
 
 
 class SavesTracker:
@@ -28,10 +29,10 @@ class SavesTracker:
 
     def getIGT(self, world=None):
         try:
-            if world == None:
+            if world is None:
                 world = self.latestWorld
 
-            if self.latestWorld is None:
+            if world is None:
                 return 0
             else:
                 statsPath = os.path.join(self.path, world, "stats")
@@ -48,13 +49,28 @@ class SavesTracker:
                     return 0
         except:
             return 0
-    
+
+    def getAltIGT(self, world=None):
+        try:
+            if world == None:
+                world = self.latestWorld
+
+            if world is None:
+                return 0
+            else:
+                levelDatPath = os.path.join(self.path, world, "level.dat")
+                levelDatNBT = nbt.read_from_nbt_file(levelDatPath)["Data"]
+
+                return levelDatNBT["Time"].value/20
+        except:
+            return 0
+
     def getKills(self, mobName, world=None):
         try:
             if world == None:
                 world = self.latestWorld
 
-            if self.latestWorld is None:
+            if self.world is None:
                 return 0
             else:
                 statsPath = os.path.join(self.path, world, "stats")
