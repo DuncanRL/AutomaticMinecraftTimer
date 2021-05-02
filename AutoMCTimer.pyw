@@ -331,19 +331,19 @@ class TimerApp(tk.Tk, DragableWindow):
         if self.timer is not None:
             return self.convertSeconds(self.timer.getRTA(), self.rtaAccuracy)
         else:
-            return self.convertSeconds(0)
+            return self.convertSeconds(0, self.rtaAccuracy)
 
     def getIGT(self):
         if self.timer is not None:
             return self.convertSeconds(self.timer.getIGT(), self.igtAccuracy)
         else:
-            return self.convertSeconds(0)
+            return self.convertSeconds(0, self.igtAccuracy)
 
     def getAltIGT(self):
         if self.timer is not None:
             return self.convertSeconds(self.timer.getAltIGT(), self.igtAccuracy)
         else:
-            return self.convertSeconds(0)
+            return self.convertSeconds(0, self.igtAccuracy)
 
     def getAttempts(self):
         if self.timer is not None:
