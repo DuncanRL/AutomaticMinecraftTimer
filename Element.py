@@ -15,7 +15,8 @@ class Element(tk.Frame):
             "attempts": AttemptsElement,
             "endermen": EndermenElement,
             "blaze": BlazeElement,
-            "glitchigt": GlitchIGTElement
+            "glitchigt": GlitchIGTElement,
+            "text": TextElement
         }
         return ids[id](timerApp)
 
@@ -155,6 +156,17 @@ class GlitchIGTElement(Element):
         self.stringVar.set(self.options.prefix+self.timerApp.getAltIGT())
 
 
+class TextElement(Element):
+    def __init__(self, timerApp):
+        self.type = "text"
+        Element.__init__(self, timerApp)
+        self.after(0, self.loop)
+
+    def loop(self):
+        self.after(1000, self.loop)
+        self.stringVar.set(self.options.prefix)
+
+
 class ElementEditor(tk.Toplevel):
     def __init__(self, element):
         tk.Toplevel.__init__(self, element.timerApp)
@@ -211,7 +223,7 @@ class ElementEditor(tk.Toplevel):
             row=3, column=2, padx=3, pady=0, sticky="w")
         tk.Label(self.topEntries, text="Position").grid(
             row=3, column=3, padx=3, pady=0, sticky="w")
-        tk.Label(self.entries, text="Prefix").grid(
+        tk.Label(self.entries, text="Prefix" if element.type != "text" else "Text").grid(
             row=1, column=0, padx=3, pady=0, sticky="w")
 
         self.fontEntry.grid(row=5, column=0, padx=5, pady=0, sticky="w")

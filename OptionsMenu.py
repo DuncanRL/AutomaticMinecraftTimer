@@ -86,9 +86,11 @@ class OptionsMenu(tk.Toplevel):
             "endermen"), text=timerApp.translation["endermen"]).grid(row=3, column=0, sticky="NESW")
         tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
             "blaze"), text=timerApp.translation["blaze"]).grid(row=4, column=0, sticky="NESW")
-        #Goodbye forever level.dat Time
-        #tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
+        # Goodbye forever level.dat Time
+        # tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
         #    "glitchigt"), text=timerApp.translation["glitchigt"]).grid(row=5, column=0, sticky="NESW")
+        tk.Button(self.addElementFrame, command=lambda: self.elementList.add(
+            "text"), text=timerApp.translation["text"]).grid(row=6, column=0, sticky="NESW")
 
         tk.Label(self.elementFrame, text="Current Elements:", font=tkFont.Font(self, font=("Arial", 10))).grid(
             row=3, column=0, padx=5, pady=5, sticky="w")
@@ -156,15 +158,16 @@ class OptionsMenu(tk.Toplevel):
         self.autoFrame.grid(row=40, column=0, sticky="w")
 
         tk.Label(self.autoFrame, text="Automatically start timer \nwhen creating new world").grid(
-            row=0, column=1,padx=5,pady=5)
+            row=0, column=1, padx=5, pady=5)
         self.autoSwitchButton = tk.Button(
             self.autoFrame, text="✅" if self.timerApp.doesAuto else "❎", command=self.autoSwitch)
-        self.autoSwitchButton.grid(row=0, column=0,padx=5,pady=5)
+        self.autoSwitchButton.grid(row=0, column=0, padx=5, pady=5)
 
     def autoSwitch(self):
         self.timerApp.doesAuto = not self.timerApp.doesAuto
         self.timerApp.timer.doesAuto = self.timerApp.doesAuto
-        self.autoSwitchButton.config(text="✅" if self.timerApp.doesAuto else "❎")
+        self.autoSwitchButton.config(
+            text="✅" if self.timerApp.doesAuto else "❎")
 
     def makeHotkeyList(self):
         with open(resource_path("hotkeys.html"), "w+") as site:

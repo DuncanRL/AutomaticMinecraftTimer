@@ -4,6 +4,7 @@ import os
 import time
 import threading
 import json
+import webbrowser
 import traceback
 import tkinter as tk
 import tkinter.font as tkFont
@@ -15,9 +16,10 @@ from Timer import *
 from KeybindManager import *
 from DragableWindow import *
 from OptionsMenu import *
+import AMCTVersionHelper
 
 # info
-amctVersion = "v2.1.2"
+amctVersion = "v2.2.0"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -62,7 +64,8 @@ class TimerApp(tk.Tk, DragableWindow):
             "attempts": "Attempts Counter",
             "endermen": "Enderman Kill Counter",
             "blaze": "Blaze Kill Counter",
-            "glitchigt": "level.dat Time"
+            "glitchigt": "level.dat Time",
+            "text": "Basic Text"
         }
 
         self.defaultSettings = {
@@ -114,27 +117,38 @@ class TimerApp(tk.Tk, DragableWindow):
         self.selectedAttempts = ""
 
         self.optionsInit()
-    
+
+        self.update()
+
+        versionInfo = AMCTVersionHelper.getLatestVersionInfo()
+        if versionInfo is not None:
+            if not AMCTVersionHelper.isUpdated(versionInfo[1], amctVersion):
+                ans = tkMessageBox.askyesno("AMCT: Outdated Version", "Your current version is "+amctVersion +
+                                            " but the latest version is "+versionInfo[1]+". Would you like to go to the downloads page?")
+                if ans:
+                    webbrowser.open(versionInfo[0])
+
     def setTime(self, x=0):
         if self.optionsMenu is None:
-            self.wm_attributes("-topmost",0)
-            ans = tkSimpleDialog.askstring("AMCT: Set Time","Set the time using one of the following:\nxx:xx:xx.xxx\nxx:xx.xxx\nxx.xxx")
-            self.wm_attributes("-topmost",1)
+            self.wm_attributes("-topmost", 0)
+            ans = tkSimpleDialog.askstring(
+                "AMCT: Set Time", "Set the time using one of the following:\nxx:xx:xx.xxx\nxx:xx.xxx\nxx.xxx")
+            self.wm_attributes("-topmost", 1)
             if ans is not None:
                 try:
                     ans = [(i if float(i) > 0 else 0) for i in ans.split(":")]
                     if len(ans) == 1:
                         self.timer.setRTA(float(ans[0]))
                     elif len(ans) == 2:
-                        self.timer.setRTA(60*ans[0]+float(ans[1]))
+                        self.timer.setRTA(60*int(ans[0])+float(ans[1]))
                     elif len(ans) == 3:
-                        self.timer.setRTA(60*60*int(ans[0])+60*int(ans[1])+float(ans[2]))
+                        self.timer.setRTA(
+                            60*60*int(ans[0])+60*int(ans[1])+float(ans[2]))
                     else:
                         int("Invalid Time Bro lmaooo gotem")
                 except:
                     traceback.print_exc()
-                    tkMessageBox.showerror("AMCT: Error","Invalid time")
-
+                    tkMessageBox.showerror("AMCT: Error", "Invalid time")
 
     def refresh(self, x=0):
         if self.optionsMenu is None:
@@ -158,11 +172,11 @@ class TimerApp(tk.Tk, DragableWindow):
             self.optionsMenu = OptionsMenu(self)
 
     def optionsInit(self):
-        #If there is no .automctimer, make the directories
+        # If there is no .automctimer, make the directories
         if not os.path.isdir(self.path):
             os.makedirs(self.path)
-        
-        #Get path to the selected.txt
+
+        # Get path to the selected.txt
         selectedFilePath = os.path.join(self.path, "selected.txt")
 
         # Check if there is a selected option stored, if not then create one with "default"
@@ -187,40 +201,40 @@ class TimerApp(tk.Tk, DragableWindow):
         self.loadOptions(self.loadFile(optionsPath))
 
     def loadFile(self, filePath):
-        #convert the json of a filepath to a python dict
+        # convert the json of a filepath to a python dict
         with open(filePath, "r") as optionsFile:
             optionsJson = json.load(optionsFile)
             optionsFile.close()
         return optionsJson
 
     def loadOptions(self, optionsJson):
-        #Check that all keys in the dict exist
+        # Check that all keys in the dict exist
         for default in self.defaultSettings:
             if default not in optionsJson or type(optionsJson[default]) != type(self.defaultSettings[default]):
                 optionsJson[default] = self.defaultSettings[default]
-        
-        #Setup keybinds
+
+        # Setup keybinds
         self.keybinds = optionsJson["keybinds"]
         self.rebind()
 
-        #Set window size
+        # Set window size
         self.geometry(str(optionsJson['windowSize'][0]) +
                       "x"+str(optionsJson['windowSize'][1]))
-        
-        #Create/update internal timer
+
+        # Create/update internal timer
         if self.timer is not None:
             self.timer.updatePath(optionsJson["mcPath"])
         else:
             self.timer = Timer(path=optionsJson["mcPath"])
-        
-        #Load other variables
+
+        # Load other variables
         self.timer.setAttempts(optionsJson["attempts"])
         self.bg = optionsJson["background"]
         self.mcPath = optionsJson["mcPath"]
         self.doesAuto = optionsJson["auto"]
         self.config(bg=self.bg)
         self.loadElements(optionsJson["elements"])
-    
+
     def rebind(self):
 
         self.keybindManager.bind(
@@ -319,7 +333,7 @@ class TimerApp(tk.Tk, DragableWindow):
             return str(self.timer.getAttempts())
         else:
             return "0"
-    
+
     def getKills(self, mobName):
         if self.timer is not None:
             return str(self.timer.getKills(mobName))
