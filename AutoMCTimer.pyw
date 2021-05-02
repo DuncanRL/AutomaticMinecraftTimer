@@ -96,7 +96,9 @@ class TimerApp(tk.Tk, DragableWindow):
             "background": "#000000",
             "attempts": 0,
             "mcPath": os.path.expanduser("~/AppData/Roaming/.minecraft").replace("\\", "/"),
-            "auto": True
+            "auto": True,
+            "rtaAccuracy": 3,
+            "igtAccuracy": 3
         }
 
         self.title("AutoMCTimer "+amctVersion)
@@ -117,12 +119,23 @@ class TimerApp(tk.Tk, DragableWindow):
         self.selectedAttempts = ""
 
         self.optionsInit()
-
         self.update()
+        self.checkVersion()
+
+    def checkVersion(self):
 
         versionInfo = AMCTVersionHelper.getLatestVersionInfo()
         if versionInfo is not None:
-            if not AMCTVersionHelper.isUpdated(versionInfo[1], amctVersion):
+            lastSeenVersion = amctVersion
+            lastSeenVersionPath = os.path.join(self.path, "lastSeenVersion")
+            if os.path.isfile(lastSeenVersionPath):
+                with open(lastSeenVersionPath, "r") as lsvFile:
+                    lastSeenVersion = lsvFile.read()
+                    lsvFile.close()
+            if not AMCTVersionHelper.isUpdated(versionInfo[1], lastSeenVersion) and (not AMCTVersionHelper.isUpdated(versionInfo[1], amctVersion)):
+                with open(lastSeenVersionPath, "w") as lsvFile:
+                    lsvFile.write(versionInfo[1])
+                    lsvFile.close()
                 ans = tkMessageBox.askyesno("AMCT: Outdated Version", "Your current version is "+amctVersion +
                                             " but the latest version is "+versionInfo[1]+". Would you like to go to the downloads page?")
                 if ans:
@@ -232,6 +245,8 @@ class TimerApp(tk.Tk, DragableWindow):
         self.bg = optionsJson["background"]
         self.mcPath = optionsJson["mcPath"]
         self.doesAuto = optionsJson["auto"]
+        self.rtaAccuracy = optionsJson["rtaAccuracy"]
+        self.igtAccuracy = optionsJson["igtAccuracy"]
         self.config(bg=self.bg)
         self.loadElements(optionsJson["elements"])
 
@@ -262,7 +277,9 @@ class TimerApp(tk.Tk, DragableWindow):
             "background": self.bg,
             "attempts": self.timer.getAttempts(),
             "mcPath": self.mcPath,
-            "auto": self.doesAuto
+            "auto": self.doesAuto,
+            "rtaAccuracy": self.rtaAccuracy,
+            "igtAccuracy": self.igtAccuracy
         }
 
         optionsPath = os.path.join(self.path, selectedText+".json")
@@ -312,19 +329,19 @@ class TimerApp(tk.Tk, DragableWindow):
 
     def getRTA(self):
         if self.timer is not None:
-            return self.convertSeconds(self.timer.getRTA())
+            return self.convertSeconds(self.timer.getRTA(), self.rtaAccuracy)
         else:
             return self.convertSeconds(0)
 
     def getIGT(self):
         if self.timer is not None:
-            return self.convertSeconds(self.timer.getIGT())
+            return self.convertSeconds(self.timer.getIGT(), self.igtAccuracy)
         else:
             return self.convertSeconds(0)
 
     def getAltIGT(self):
         if self.timer is not None:
-            return self.convertSeconds(self.timer.getAltIGT())
+            return self.convertSeconds(self.timer.getAltIGT(), self.igtAccuracy)
         else:
             return self.convertSeconds(0)
 
@@ -341,9 +358,12 @@ class TimerApp(tk.Tk, DragableWindow):
             return "0"
 
     @staticmethod
-    def convertSeconds(seconds: float):
+    def convertSeconds(seconds: float, accuracy=3):
         x = seconds
-        Seconds = "%.3f" % (x-(int(x)-(int(x) % 60)))
+        if accuracy < 1:
+            Seconds = str(int(x-(int(x)-(int(x) % 60))))
+        else:
+            Seconds = f"%.{str(accuracy)}f" % (x-(int(x)-(int(x) % 60)))
         if x % 60 < 10:
             Seconds = "0" + Seconds
         Minutes = str(int(x/(60)) % 60)

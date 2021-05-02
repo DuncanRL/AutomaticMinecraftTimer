@@ -54,7 +54,9 @@ class OptionsMenu(tk.Toplevel):
             "background": timerApp.bg,
             "attempts": timerApp.timer.getAttempts(),
             "mcPath": timerApp.mcPath,
-            "auto": timerApp.doesAuto
+            "auto": timerApp.doesAuto,
+            "rtaAccuracy": timerApp.rtaAccuracy,
+            "igtAccuracy": timerApp.igtAccuracy
         }
 
         self.elementFrame = tk.LabelFrame(self)
@@ -110,7 +112,7 @@ class OptionsMenu(tk.Toplevel):
         tk.Label(self.otherOptions, text="Other Options", font=tkFont.Font(
             self, font=("Arial", 15))).grid(row=1, column=0, padx=5, pady=5)
 
-        for i in range(4):
+        for i in range(5):
             ttk.Separator(self.otherOptions, orient="horizontal").grid(
                 row=10*i+5, column=0, sticky='we')
 
@@ -162,6 +164,39 @@ class OptionsMenu(tk.Toplevel):
         self.autoSwitchButton = tk.Button(
             self.autoFrame, text="✅" if self.timerApp.doesAuto else "❎", command=self.autoSwitch)
         self.autoSwitchButton.grid(row=0, column=0, padx=5, pady=5)
+
+        self.accuracyFrame = tk.Frame(self.otherOptions)
+        self.accuracyFrame.grid(row=50, column=0, sticky="w")
+
+        tk.Label(self.accuracyFrame, text="Decimal Accuracy").grid(
+            row=0, column=0, columnspan=3, padx=5, pady=5, sticky="w")
+        tk.Label(self.accuracyFrame, text="RTA:").grid(
+            row=1, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(self.accuracyFrame, text="IGT:").grid(
+            row=2, column=0, padx=5, pady=5, sticky="w")
+
+        self.rtaAccuracyEntry = IntEntry(self.accuracyFrame, 10)
+        self.rtaAccuracyEntry.config(width=2)
+        self.rtaAccuracyEntry.insert(0,str(self.oldOptions["rtaAccuracy"]))
+        self.rtaAccuracyEntry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+
+        self.igtAccuracyEntry = IntEntry(self.accuracyFrame, 10)
+        self.igtAccuracyEntry.config(width=2)
+        self.igtAccuracyEntry.insert(0,str(self.oldOptions["igtAccuracy"]))
+        self.igtAccuracyEntry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+
+        self.after(500,self.loop)
+    
+    def toInt(self,x):
+        try:
+            return int(x)
+        except:
+            return 0
+
+    def loop(self):
+        self.after(500, self.loop)
+        self.timerApp.rtaAccuracy = self.toInt(self.rtaAccuracyEntry.get())
+        self.timerApp.igtAccuracy = self.toInt(self.igtAccuracyEntry.get())
 
     def autoSwitch(self):
         self.timerApp.doesAuto = not self.timerApp.doesAuto
