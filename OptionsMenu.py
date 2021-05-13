@@ -200,7 +200,6 @@ class OptionsMenu(tk.Toplevel):
 
     def autoSwitch(self):
         self.timerApp.doesAuto = not self.timerApp.doesAuto
-        self.timerApp.timer.doesAuto = self.timerApp.doesAuto
         self.autoSwitchButton.config(
             text="✅" if self.timerApp.doesAuto else "❎")
 

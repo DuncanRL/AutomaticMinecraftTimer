@@ -42,7 +42,8 @@ class Element(tk.Frame):
             "color": self.options.color,
             "prefix": self.options.prefix,
             "font": self.options.font,
-            "size": self.options.size
+            "size": self.options.size,
+            "align": self.options.align
         }
 
     def updateDisplay(self):
@@ -53,7 +54,8 @@ class Element(tk.Frame):
     def updatePosition(self):
         if self.isVisible:
             pos = self.options.position
-            self.place(x=pos[0], y=pos[1], anchor="nw")
+            align = self.options.align
+            self.place(x=pos[0], y=pos[1], anchor="n"+align)
         else:
             self.place_forget()
 
@@ -79,6 +81,7 @@ class ElementOptions:
         self.position = [0, 0]
         self.color = "#ffffff"
         self.prefix = ""
+        self.align = "w"
 
     def copy(self):
         opt = ElementOptions(self.timerApp)
@@ -131,7 +134,8 @@ class EndermenElement(Element):
 
     def loop(self):
         self.after(1000, self.loop)
-        self.stringVar.set(self.options.prefix+self.timerApp.getKills("enderman"))
+        self.stringVar.set(self.options.prefix +
+                           self.timerApp.getKills("enderman"))
 
 
 class BlazeElement(Element):
@@ -186,15 +190,21 @@ class ElementEditor(tk.Toplevel):
 
         self.entries = tk.Frame(self)
         self.topEntries = tk.Frame(self.entries)
-        self.topEntries.grid(row=0, column=0)
+        self.topEntries.grid(row=0, column=0,sticky="w")
+        self.bottomEntries = tk.Frame(self.entries)
+        self.bottomEntries.grid(row=1, column=0,sticky="w")
 
         self.fontEntry = tk.Entry(self.topEntries)
         self.fontEntry.config(width=10)
         self.fontEntry.insert(0, element.options.font)
 
-        self.prefixEntry = tk.Entry(self.entries)
-        self.prefixEntry.config(width=35)
+        self.prefixEntry = tk.Entry(self.bottomEntries)
+        self.prefixEntry.config(width=23)
         self.prefixEntry.insert(0, element.options.prefix)
+
+        self.alignVar = tk.StringVar(self, element.options.align)
+        self.alignBox = tk.Checkbutton(
+            self.bottomEntries, command=lambda *x: self.swapAlign(), variable=self.alignVar, onvalue="e", offvalue="w")
 
         self.sizeEntry = IntEntry(self.topEntries, 200)
         self.sizeEntry.insert(0, str(element.options.size))
@@ -223,14 +233,17 @@ class ElementEditor(tk.Toplevel):
             row=3, column=2, padx=3, pady=0, sticky="w")
         tk.Label(self.topEntries, text="Position").grid(
             row=3, column=3, padx=3, pady=0, sticky="w")
-        tk.Label(self.entries, text="Prefix" if element.type != "text" else "Text").grid(
+        tk.Label(self.bottomEntries, text="Prefix" if element.type != "text" else "Text").grid(
             row=1, column=0, padx=3, pady=0, sticky="w")
+        tk.Label(self.bottomEntries, text="Right Align").grid(
+            row=1, column=1, padx=3, pady=0, sticky="w")
 
         self.fontEntry.grid(row=5, column=0, padx=5, pady=0, sticky="w")
         self.sizeEntry.grid(row=5, column=1, padx=5, pady=0, sticky="w")
         self.colorEntry.grid(row=5, column=2, padx=5, pady=0, sticky="w")
         self.posFrame.grid(row=5, column=3, padx=0, pady=0, sticky="w")
         self.prefixEntry.grid(row=2, column=0, padx=5, pady=0, sticky="w")
+        self.alignBox.grid(row=2, column=1, padx=5, pady=0, sticky="w")
 
         self.entries.grid(row=0, column=0)
 
@@ -261,6 +274,10 @@ class ElementEditor(tk.Toplevel):
         else:
             element.beingEdited = True
             element.editor = self
+
+    def swapAlign(self):
+        self.element.options.align = self.alignVar.get()
+        self.element.updateDisplay()
 
     def remove(self, x=0):
         self.destroy()

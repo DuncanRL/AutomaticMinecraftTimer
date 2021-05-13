@@ -19,7 +19,7 @@ from OptionsMenu import *
 import AMCTVersionHelper
 
 # info
-amctVersion = "v2.2.0"
+amctVersion = "v2.3.0"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -48,10 +48,15 @@ class TimerApp(tk.Tk, DragableWindow):
         tk.Tk.__init__(self)
         try:
             self.startup()
+            self.after(0,self.loop)
         except:
             traceback.print_exc()
             self.stop()
             self.destroy()
+    
+    def loop(self):
+        self.after(50,self.loop)
+        self.timer.doesAuto = self.doesAuto
 
     def startup(self):
         self.protocol("WM_DELETE_WINDOW", self.exit)
@@ -318,11 +323,12 @@ class TimerApp(tk.Tk, DragableWindow):
             element = Element.fromIdentifier(elementJson["type"], self)
             opt = element.options
 
-            opt.color = elementJson["color"]
-            opt.position = elementJson["position"]
-            opt.prefix = elementJson["prefix"]
-            opt.font = elementJson["font"]
-            opt.size = elementJson["size"]
+            opt.color = elementJson.get("color","#ffffff")
+            opt.position = elementJson.get("position",[0,0])
+            opt.prefix = elementJson.get("prefix","")
+            opt.font = elementJson.get("font","Arial")
+            opt.size = elementJson.get("size",50)
+            opt.align = elementJson.get("align","w")
 
             element.updateDisplay()
             self.elements.append(element)
