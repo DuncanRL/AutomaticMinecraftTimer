@@ -19,7 +19,7 @@ from OptionsMenu import *
 import AMCTVersionHelper
 
 # info
-amctVersion = "v2.3.0"
+amctVersion = "v2.3.1"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -32,6 +32,8 @@ backspace, tab, clear, enter, shift, control, alt, pause, caps_lock, escape, spa
 
 multiply_key, add_key, separator_key, subtract_key, decimal_key, divide_key, num_lock, scroll_lock, left_shift, right_shift,  left_control, right_control, left_menu, right_menu, browser_back, browser_forward, browser_refresh, browser_stop, browser_search, browser_favorites, browser_start_and_home, volume_mute, volume_Down, volume_up, next_track, previous_track, stop_media, play/ \
     pause_media, start_mail, select_media, start_application_1, start_application_2, attn_key, crsel_key, exsel_key, play_key, zoom_key, clear_key'''
+
+
 
 
 def resource_path(relative_path):
@@ -365,7 +367,7 @@ class TimerApp(tk.Tk, DragableWindow):
 
     @staticmethod
     def convertSeconds(seconds: float, accuracy=3):
-        x = seconds
+        x=seconds#x = int(seconds*(10**accuracy))/10**accuracy
         if accuracy < 1:
             Seconds = str(int(x-(int(x)-(int(x) % 60))))
         else:
@@ -379,6 +381,10 @@ class TimerApp(tk.Tk, DragableWindow):
             Minutes = "0" + Minutes
 
         return ((Hours+":") if Hours != "0" else "")+Minutes+":"+Seconds
+
+
+for i in range(60001):
+    print(TimerApp.convertSeconds(i/1000,accuracy=1))
 
 
 if __name__ == "__main__":
