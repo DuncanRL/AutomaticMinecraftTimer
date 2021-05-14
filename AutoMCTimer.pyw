@@ -367,7 +367,7 @@ class TimerApp(tk.Tk, DragableWindow):
 
     @staticmethod
     def convertSeconds(seconds: float, accuracy=3):
-        x=seconds#x = int(seconds*(10**accuracy))/10**accuracy
+        x = int(seconds*(10**accuracy))/10**accuracy
         if accuracy < 1:
             Seconds = str(int(x-(int(x)-(int(x) % 60))))
         else:
@@ -381,10 +381,6 @@ class TimerApp(tk.Tk, DragableWindow):
             Minutes = "0" + Minutes
 
         return ((Hours+":") if Hours != "0" else "")+Minutes+":"+Seconds
-
-
-for i in range(60001):
-    print(TimerApp.convertSeconds(i/1000,accuracy=1))
 
 
 if __name__ == "__main__":
