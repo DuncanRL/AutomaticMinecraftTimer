@@ -177,17 +177,17 @@ class OptionsMenu(tk.Toplevel):
 
         self.rtaAccuracyEntry = IntEntry(self.accuracyFrame, 10)
         self.rtaAccuracyEntry.config(width=2)
-        self.rtaAccuracyEntry.insert(0,str(self.oldOptions["rtaAccuracy"]))
+        self.rtaAccuracyEntry.insert(0, str(self.oldOptions["rtaAccuracy"]))
         self.rtaAccuracyEntry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
         self.igtAccuracyEntry = IntEntry(self.accuracyFrame, 10)
         self.igtAccuracyEntry.config(width=2)
-        self.igtAccuracyEntry.insert(0,str(self.oldOptions["igtAccuracy"]))
+        self.igtAccuracyEntry.insert(0, str(self.oldOptions["igtAccuracy"]))
         self.igtAccuracyEntry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
 
-        self.after(500,self.loop)
-    
-    def toInt(self,x):
+        self.after(500, self.loop)
+
+    def toInt(self, x):
         try:
             return int(x)
         except:

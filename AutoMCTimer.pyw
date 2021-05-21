@@ -1,15 +1,12 @@
 # other modules
-import global_hotkeys
 import os
 import time
-import threading
 import json
 import webbrowser
 import traceback
 import tkinter as tk
 import tkinter.font as tkFont
 import tkinter.simpledialog as tkSimpleDialog
-from sys import platform
 # modules for this project
 from Element import *
 from Timer import *
@@ -19,7 +16,7 @@ from OptionsMenu import *
 import AMCTVersionHelper
 
 # info
-amctVersion = "v2.3.1"
+amctVersion = "v2.3.3"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...
@@ -32,8 +29,6 @@ backspace, tab, clear, enter, shift, control, alt, pause, caps_lock, escape, spa
 
 multiply_key, add_key, separator_key, subtract_key, decimal_key, divide_key, num_lock, scroll_lock, left_shift, right_shift,  left_control, right_control, left_menu, right_menu, browser_back, browser_forward, browser_refresh, browser_stop, browser_search, browser_favorites, browser_start_and_home, volume_mute, volume_Down, volume_up, next_track, previous_track, stop_media, play/ \
     pause_media, start_mail, select_media, start_application_1, start_application_2, attn_key, crsel_key, exsel_key, play_key, zoom_key, clear_key'''
-
-
 
 
 def resource_path(relative_path):
@@ -50,14 +45,14 @@ class TimerApp(tk.Tk, DragableWindow):
         tk.Tk.__init__(self)
         try:
             self.startup()
-            self.after(0,self.loop)
+            self.after(0, self.loop)
         except:
             traceback.print_exc()
             self.stop()
             self.destroy()
-    
+
     def loop(self):
-        self.after(50,self.loop)
+        self.after(50, self.loop)
         self.timer.doesAuto = self.doesAuto
 
     def startup(self):
@@ -325,12 +320,12 @@ class TimerApp(tk.Tk, DragableWindow):
             element = Element.fromIdentifier(elementJson["type"], self)
             opt = element.options
 
-            opt.color = elementJson.get("color","#ffffff")
-            opt.position = elementJson.get("position",[0,0])
-            opt.prefix = elementJson.get("prefix","")
-            opt.font = elementJson.get("font","Arial")
-            opt.size = elementJson.get("size",50)
-            opt.align = elementJson.get("align","w")
+            opt.color = elementJson.get("color", "#ffffff")
+            opt.position = elementJson.get("position", [0, 0])
+            opt.prefix = elementJson.get("prefix", "")
+            opt.font = elementJson.get("font", "Arial")
+            opt.size = elementJson.get("size", 50)
+            opt.align = elementJson.get("align", "w")
 
             element.updateDisplay()
             self.elements.append(element)

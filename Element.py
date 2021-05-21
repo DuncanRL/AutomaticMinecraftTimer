@@ -190,9 +190,9 @@ class ElementEditor(tk.Toplevel):
 
         self.entries = tk.Frame(self)
         self.topEntries = tk.Frame(self.entries)
-        self.topEntries.grid(row=0, column=0,sticky="w")
+        self.topEntries.grid(row=0, column=0, sticky="w")
         self.bottomEntries = tk.Frame(self.entries)
-        self.bottomEntries.grid(row=1, column=0,sticky="w")
+        self.bottomEntries.grid(row=1, column=0, sticky="w")
 
         self.fontEntry = tk.Entry(self.topEntries)
         self.fontEntry.config(width=10)

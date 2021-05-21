@@ -46,11 +46,11 @@ class ColorEntry(tk.Button):
                 self.config(bg=chosen)
                 for i in self.changeCalls:
                     i()
-            
+
             self.parent.focus()
 
     def get(self):
         return self.color
-    
-    def addChangeCall(self,func):
+
+    def addChangeCall(self, func):
         self.changeCalls.append(func)

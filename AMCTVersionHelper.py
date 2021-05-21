@@ -1,16 +1,18 @@
 import requests
 
+
 def getLatestVersionInfo():
     try:
-        response = requests.get("https://api.github.com/repos/DuncanRuns/AutomaticMinecraftTimer/releases/latest").json()
-        return [response["html_url"],response["tag_name"]]
+        response = requests.get(
+            "https://api.github.com/repos/DuncanRuns/AutomaticMinecraftTimer/releases/latest").json()
+        return [response["html_url"], response["tag_name"]]
     except:
         return None
 
 
-def isUpdated(latest,current):
+def isUpdated(latest, current):
     return getVersionInt(current) >= getVersionInt(latest)
-    
+
 
 def getVersionInt(version):
     if version[0] == "v":

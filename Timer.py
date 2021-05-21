@@ -30,7 +30,7 @@ class Timer:
         else:
             return 0
 
-    def getKills(self,mobName):
+    def getKills(self, mobName):
         if self.savesTracker is not None:
             return self.savesTracker.getKills(mobName)
         else:
@@ -86,7 +86,7 @@ class Timer:
         if self.state == 1:
             self.pauseTime = time.time() - self.startTime
             self.state = 2
-    
+
     def resetCall(self):
         if self.doesAuto:
             self.reset()
