@@ -44,7 +44,10 @@ class SavesTracker:
                     try:
                         return statsJson["stats"]["minecraft:custom"]["minecraft:play_one_minute"]/20
                     except:
-                        return statsJson["stat.playOneMinute"]/20
+                        try:
+                            return statsJson["stat.playOneMinute"]/20
+                        except:
+                            return statsJson["stats"]["minecraft:custom"]["minecraft:play_time"]/20
                 else:
                     return 0
         except:

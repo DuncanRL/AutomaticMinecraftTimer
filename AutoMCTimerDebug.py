@@ -1,5 +1,4 @@
 from AutoMCTimer import *
-import os
 
 if __name__ == "__main__":
     timerApp = TimerApp()
