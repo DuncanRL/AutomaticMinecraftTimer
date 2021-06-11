@@ -1,6 +1,6 @@
 ## Why is AutoMCTimer detected as a virus?
 
-My timer is built on python, and to package this into a ".exe", I use a software called "pyinstaller". Unfortunately, many virus makers use pyinstaller, causing most (if not all) software developed using it to be flagged as a virus.
+My timer is programmed in python, and to package this into a ".exe", I use a software called "pyinstaller". Unfortunately, many virus makers use pyinstaller, causing most (if not all) software developed using it to be flagged as a virus.
 
 This software is fully open source, and the only thing that could be percieved as remotely malicious in the timer is the automatic checking of this github to see if there are any updates.
 
