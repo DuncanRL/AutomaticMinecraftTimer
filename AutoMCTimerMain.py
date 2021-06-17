@@ -16,7 +16,7 @@ from OptionsMenu import *
 import AMCTVersionHelper
 
 # info
-amctVersion = "v2.4.0"
+amctVersion = "v2.4.1"
 hotkeylist = '''Possible Hotkeys:
 
 0,1,2...

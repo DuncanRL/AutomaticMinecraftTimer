@@ -96,18 +96,20 @@ class SavesTracker:
         self.worldList = []
         newLatestWorld = None
         max = 0
-        for worldName in os.listdir(self.path):
-            if os.path.isfile(os.path.join(self.path, worldName, "level.dat")):
-                self.worldList.append(worldName)
-                wtime = os.path.getctime(os.path.join(self.path, worldName))
-                if wtime > max:
-                    newLatestWorld = worldName
-                    max = wtime
-                    if worldName not in oldList:
-                        self.newWorldEvent()
-            else:
-                threading.Thread(target=self.waitForWorld,
-                                 args=(worldName,)).start()
+        if os.path.isdir(self.path):
+            for worldName in os.listdir(self.path):
+                if os.path.isfile(os.path.join(self.path, worldName, "level.dat")):
+                    self.worldList.append(worldName)
+                    wtime = os.path.getctime(
+                        os.path.join(self.path, worldName))
+                    if wtime > max:
+                        newLatestWorld = worldName
+                        max = wtime
+                        if worldName not in oldList:
+                            self.newWorldEvent()
+                else:
+                    threading.Thread(target=self.waitForWorld,
+                                     args=(worldName,)).start()
         self.latestWorld = newLatestWorld
 
     def waitForWorld(self, worldName):
@@ -122,12 +124,13 @@ class SavesTracker:
     def loop(self):
         while self.running:
             time.sleep(0.1)
-            newlen = len(os.listdir(self.path))
-            newmtime = os.path.getmtime(self.path)
-            if self.mtime != newmtime or self.savesLen != newlen:
-                self.savesLen = newlen
-                self.mtime = newmtime
-                self.updateWorldList()
+            if os.path.isdir(self.path):
+                newlen = len(os.listdir(self.path))
+                newmtime = os.path.getmtime(self.path)
+                if self.mtime != newmtime or self.savesLen != newlen:
+                    self.savesLen = newlen
+                    self.mtime = newmtime
+                    self.updateWorldList()
 
 
 class LogsTracker:
